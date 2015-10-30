@@ -1,0 +1,43 @@
+<config>      
+    <modules>  
+        <Magento_Action>  
+            <version>0.1.0</version>  
+        </Magento_Action>  
+    </modules>
+    <global>
+        <events>
+            <controller_front_init_routers>
+                <observers>
+                    <Magento_Action_Model_Observer>
+                        <type>singleton</type>
+                        <class>Magento_Action_Model_Observer</class>
+                        <method>checkForConfigRequest</method>
+                    </Magento_Action_Model_Observer>
+                </observers>
+            </controller_front_init_routers>
+        </events>
+    </global>
+    <frontend>
+        <routers>
+            <Action>
+                <use>standard</use>
+                <args>
+                    <module>Magento_Action</module>
+                    <frontName>Action</frontName>
+                </args>
+            </Action>
+        </routers>
+
+    </frontend>
+    <models>
+        <action>
+            <class>Magento_Action_Model</class>
+            <!--
+            need to create our own resource, can't just
+            use core_resource
+            -->
+            <resourceModel>action_resource</resourceModel>
+        </action>
+    </models>
+
+</config>  

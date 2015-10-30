@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+<modules>
+<Chinapay_Chinapay>
+<active>true</active>
+<codePool>community</codePool>
+</Chinapay_Chinapay>
+</modules>
+</config>

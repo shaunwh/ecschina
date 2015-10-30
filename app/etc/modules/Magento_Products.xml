@@ -1,0 +1,8 @@
+<config>
+    <modules>
+        <Magento_Products>
+            <active>true</active>
+            <codePool>local</codePool>
+        </Magento_Products>
+    </modules>
+</config>

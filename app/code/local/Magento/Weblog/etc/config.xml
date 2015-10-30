@@ -1,0 +1,35 @@
+<config>
+    <modules>
+        <Magento_Weblog>
+            <version>0.1.0</version>
+            <codePool>local</codePool>
+        </Magento_Weblog>
+    </modules>
+    <frontend>
+        <routers>
+            <weblog>
+                <use>standard</use>
+                <args>
+                    <module>Magento_Weblog</module>
+                    <frontName>Weblog</frontName>
+                </args>
+            </weblog>
+        </routers>
+    </frontend>
+    <global>
+        <models>
+            <weblog>
+                <class>Magento_Weblog_Model</class>
+                <resourceModel>weblog_resource</resourceModel>
+            </weblog>
+            <weblog_resource>
+                <class>Magento_Weblog_Model_Resource</class>
+                <entities>
+                    <blogpost>
+                        <table>catalog_category_product</table>
+                    </blogpost>
+                </entities>
+            </weblog_resource>
+        </models>
+    </global>
+</config>

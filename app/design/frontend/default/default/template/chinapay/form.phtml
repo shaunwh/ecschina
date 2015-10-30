@@ -1,0 +1,15 @@
+<?php
+
+?>
+
+
+
+<fieldset class="form-divst">
+	<?php $_code=$this->getMethodCode() ?>
+	<ul id="payment_form_<?php echo $_code ?>" style="display:none">
+		<div style="clear:both;">
+			<img src="<?php echo $this->getSkinUrl("images/chinapay.jpg");?>"/></br>
+			<?php echo $this->__('You will be redirected to chinapay website when you place an order.') ?>
+		</div>
+	</ul>
+</fieldset>

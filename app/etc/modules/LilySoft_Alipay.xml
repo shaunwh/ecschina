@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <LilySoft_Alipay>
+            <active>true</active>
+            <codePool>community</codePool>
+        </LilySoft_Alipay>
+    </modules>
+</config> 
