@@ -581,6 +581,16 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for edit cart
+     */
+    public function editCartAction(){
+        Mage::log("receive edit cart action.");
+        //todo logic is update cart item one by one
+        $cart_id = $this->getRequest()->getParam("cart_id",false);
+        $products = $this->getRequest()->getParam("products",false);
+    }
+
+    /**
      * api for update cart
      */
     public function updateCartAction(){
