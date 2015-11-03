@@ -103,19 +103,19 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive sign action.");
         $paras = $this->getRequest()->getParams();
         if(empty($paras)){
-            echo Zend_Json::encode(array("success" => false, "data" => "parameter can not be empty."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "邮箱、用户名、密码不能为空"));return;
         }
-        $session = $this->_getSession();
-        $code = $session->getData('mcode');
-        if(!$code || $code['mobile'] != $paras['phone'] || $code['secret'] != $paras['secret']){
-            echo Zend_Json::encode(array("success" => false, "data" => "verify phone failed."));return;
-        }
+        //$session = $this->_getSession();
+        //$code = $session->getData('mcode');
+        //if(!$code || $code['mobile'] != $paras['phone'] || $code['secret'] != $paras['secret']){
+        //    echo Zend_Json::encode(array("success" => false, "data" => "verify phone failed."));return;
+        //}
         $cus_model = $this->_newCustomer();
         $customer = $cus_model->getCollection()
-            ->addAttributeToFilter('phone',$paras['phone'])
+            ->addAttributeToFilter('email',$paras['email'])
             ->getFirstItem();
         if($customer->getData('entity_id')){
-            echo Zend_Json::encode(array("success" => false, "data" => "phone or email already exists."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "该邮箱已经注册"));return;
         }else{
             $customer = $this->_newCustomer();
             $customer->setGroupId(1);
@@ -132,7 +132,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $session->login($paras['email'],$paras['password']);
                 echo Zend_Json::encode(array("success" => true, "data" => $data));return;
             }else{
-                echo Zend_Json::encode(array('success' => false, 'data' => 'sign in failed.'));
+                echo Zend_Json::encode(array('success' => false, 'data' => '注册失败，请联系管理员'));
             }
         }
 
@@ -178,14 +178,15 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive verify message action.");
         $mobile = $this->getRequest()->getParam('mobile',15210010339);
         if(!$mobile){
-            echo Zend_Json::encode(array("success" => false, "data" => "phone must be provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "电话号码不能为空"));return;
         }
         $secret = rand(100000, 999999);
         $result = $this->_verifyMessage($mobile,$secret);
         $res = json_decode($result,true);
         if($res['result'] == "SUCCESS"){
-            $this->_getSession()->setData('mcode', array('mobile'=>$mobile, 'secret'=>$secret));
-            echo Zend_Json::encode(array("success" => true, "data" => "send sms successfully."));return;
+            $session = $this->_getSession();
+            $session->setData('mcode', array('mobile'=>$mobile, 'secret'=>$secret));
+            echo Zend_Json::encode(array("success" => true, "data" => "发送验证码成功"));return;
         }else{
             echo Zend_Json::encode(array("success" => false, "data" => $res['reason']));
         }
@@ -203,7 +204,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         }
         $paras = $this->getRequest()->getParams();
         if(empty($paras['username']) || empty($paras['password'])){
-            echo Zend_Json::encode(array("success" => false, "data" => "email or password can not be empty."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "用户名和密码不能为空"));return;
         }
         // if username is phone , then select email by phone
         if(!strstr($paras['username'],'@') && strlen($paras['username']) == 11){
@@ -213,7 +214,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             if($mobileNu->getData('email')){
                 $paras['username'] = $mobileNu->getData('email');
             }else{
-                echo Zend_Json::encode(array("success" => false, "data" => "phone is not exists."));
+                echo Zend_Json::encode(array("success" => false, "data" => "该用户不存在"));
             }
         }
         try{
@@ -234,7 +235,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             ->renewSession()
             ->setBeforeAuthUrl($this->_getRefererUrl());
 
-        echo Zend_Json::encode(array("success" => true, "data" => "logout successfully."));
+        echo Zend_Json::encode(array("success" => true, "data" => "注销成功"));
     }
 
     /**
@@ -255,7 +256,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $customer_data = $session->getCustomer()->getData();
             echo Zend_Json::encode(array("success" => true, "data" => "$customer_data"));
         }else{
-            echo Zend_Json::encode(array("success" => false, "data" => "change password failed, please try again."));
+            echo Zend_Json::encode(array("success" => false, "data" => "修改密码失败"));
         }
     }
 
@@ -268,13 +269,23 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         //$paras = array("mobile" => 15210010339, "secret" => 847399);
         $session = $this->_getSession();
         $mCode = $session->getData('mcode');
+        //echo Zend_Json::encode(array("data" => $mCode));exit;
+        Mage::log("session code is :".var_export($mCode,true));
         if(empty($paras)){
-            echo Zend_Json::encode(array("success" => false, "data" => "mobile and secret must be provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请填写电话号码和验证码"));return;
         }
         if(!$mCode || $mCode['mobile'] != $paras['mobile'] || $mCode['secret'] != $paras['secret']){
-            echo Zend_Json::encode(array("success" => false, "data" => "mobile and secret not matched."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "手机号码或者验证码不匹配"));return;
         }
-        echo Zend_Json::encode(array("success" => true, "data" => "verify successfully."));return;
+        $customerId = $session->getCustomerId();
+        if($customerId){
+            $customer = $this->_newCustomer()->load($customerId);
+            if($customer){
+                $customer->setPhone($paras['mobile']);
+                $customer->save();
+            }
+        }
+        echo Zend_Json::encode(array("success" => true, "data" => "验证成功"));return;
     }
 
     /**
@@ -285,7 +296,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
        $session = $this->_getSession();
        $password = $this->getRequest()->getParam("password",false);
        if(!$password){
-           echo Zend_Json::encode(array("success" => false, "data" => "password can not be empty."));return;
+           echo Zend_Json::encode(array("success" => false, "data" => "密码不能为空"));return;
        }
        $mCode = $session->getData('mcode');
        $customer = $this->_newCustomer();
@@ -298,7 +309,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
            $customer_data = $session->getCustomer()->getData();
            echo Zend_Json::encode(array("success" => true, "data" => $customer_data));return;
        }else{
-           echo Zend_Json::encode(array("success" => false, "data" => "reset password failed."));return;
+           echo Zend_Json::encode(array("success" => false, "data" => "重置密码失败"));return;
        }
     }
 
@@ -309,7 +320,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive edit user info action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "please login first."));
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));
         }
         $paras = $this->getRequest()->getParams();
         $customer = $this->_newCustomer();
@@ -428,7 +439,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive product info action.");
         $productId = $this->getRequest()->getParam("product_id",false);
         if(!$productId){
-            echo Zend_Json::encode(array("error" => "the product id must be provided."));return;
+            echo Zend_Json::encode(array("error" => "请选择产品"));return;
         }
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
@@ -522,7 +533,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
              * Check product availability
              */
             if (!$product) {
-                echo Zend_Json::encode(array("success" => false, "data" => "no this product."));
+                echo Zend_Json::encode(array("success" => false, "data" => "没有这个产品"));
                 return;
             }
             $cart->addProduct($product, $params);
@@ -542,7 +553,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 if (!$cart->getQuote()->getHasError()) {
                     //$message = $this->__('%s was added to your shopping cart.', Mage::helper('core')->escapeHtml($product->getName()));
                     //$this->_getCartSession()->addSuccess("add ".$product->getName()." success.");
-                    echo Zend_Json::encode(array("success" => true, "data" => "add product to cart successfully."));return;
+                    echo Zend_Json::encode(array("success" => true, "data" => "成功添加购物车"));return;
                 }
             }
         } catch (Mage_Core_Exception $e) {
@@ -559,7 +570,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $session = $this->_getSession();
         if(!$session->isLoggedIn())
         {
-            echo Zend_Json::encode(array('error' => 'please login first.'));return;
+            echo Zend_Json::encode(array('error' => '请先登录'));return;
         }
         $cart = $this->_newCart();
 
@@ -636,7 +647,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     ->save();
             }
             $this->_getSession()->setCartWasUpdated(true);
-            echo Zend_Json::encode(array("success" => true, "data" => "update cart item successfully."));return;
+            echo Zend_Json::encode(array("success" => true, "data" => "成功更新购物车"));return;
         } catch (Mage_Core_Exception $e) {
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -650,7 +661,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         try {
             $this->_newCart()->truncate()->save();
             $this->_getSession()->setCartWasUpdated(true);
-            echo Zend_Json::encode(array("success" => true, "data" => "empty shopping cart successfully."));return;
+            echo Zend_Json::encode(array("success" => true, "data" => "成功清空购物车"));return;
         } catch (Mage_Core_Exception $exception) {
             //$this->_getSession()->addError($exception->getMessage());
             echo Zend_Json::encode(array("success" => false, "data" => $exception->getMessage()));return;
@@ -667,12 +678,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             try {
                 $this->_newCart()->removeItem($id)
                     ->save();
-                echo Zend_Json::encode(array("success" => true, "data" => "delete cart item true."));
+                echo Zend_Json::encode(array("success" => true, "data" => "成功移除购物车"));
             } catch (Exception $e) {
-                echo Zend_Json::encode(array("success" => false, "data" => "delete cart item error."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "移除购物车失败"));return;
             }
         }
-        echo Zend_Json::encode(array("success" => false, "data" => "item id must be provided."));
+        echo Zend_Json::encode(array("success" => false, "data" => "请选择你要移除的购物车"));
     }
 
     /**
@@ -684,7 +695,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
         if(!$customerId){
-            echo Zend_Json::encode(array("error" => "please login in first."));return;
+            echo Zend_Json::encode(array("error" => "请先登录"));return;
         }
         $order = $this->_newOrder()->getCollection()
             ->addAttributeToSelect("*")
@@ -714,7 +725,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive order info action.");
         $order_id = $this->getRequest()->getParam('id',false);
         if(!$order_id){
-            echo Zend_Json::encode(array('error' => 'order id must be provided.'));return;
+            echo Zend_Json::encode(array('error' => '请选择你索要查看的订单'));return;
         }
         //product items
         //http://blog.sina.com.cn/s/blog_8a69598a0101kbsr.html
@@ -734,7 +745,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive cancel order action.");
         $order_id = $this->getRequest()->getParam("id",false);
         if(!$order_id){
-            echo Zend_Json::encode(array("error" => "order id must be provided."));return;
+            echo Zend_Json::encode(array("error" => "请选择你要取消的订单"));return;
         }
         $order = $this->_newOrder()->load($order_id);
         $res = $order->cancel();
@@ -823,7 +834,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                         $address->save();
                         $addressId = $address->getData('entity_id');
                     } else {
-                        echo Zend_Json::encode(array("success" => false, "data" => "save address failed."));return;
+                        echo Zend_Json::encode(array("success" => false, "data" => "保存收货地址失败"));return;
                     }
                 } catch (Mage_Core_Exception $e) {
                     echo Zend_Json::encode(array("success" => false, "error" => $e->getMessage()));return;
@@ -896,10 +907,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             //请先确认你所输的产品是否存在， 这里我输的产品号 Id 是 43
             $subTotal = 0;
             $products = $this->getRequest()->getParam('products',false);
-            $products = array(
-                '2' => array('qty' => 3),
-                '1' => array('qty' => 1)
-            );
+            //$products = array(
+            //    '2' => array('qty' => 3),
+             //   '1' => array('qty' => 1)
+            //);
 
             foreach ($products as $productId => $product) {
                 $_product  = Mage::getModel('catalog/product')->load($productId);
@@ -934,7 +945,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $transaction->addCommitCallback(array($order, 'place'));
             $transaction->addCommitCallback(array($order, 'save'));
             $transaction->save();
-            echo Zend_Json::encode(array("success" => true, "data" => "make order successfully."));
+            echo Zend_Json::encode(array("success" => true, "data" => "成功生成订单"));
         } catch (Exception $e) {
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -948,7 +959,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive save customer address action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "please login first."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         //$customerId = $session->getCustomerId();
         $address = $this->_newAddress();
@@ -1000,7 +1011,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 echo Zend_Json::encode(array("success" => true, "data" => $data));
                 return;
             } else {
-                echo Zend_Json::encode(array("success" => false, "data" => "save address failed."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "保存收货地址失败"));return;
             }
         } catch (Mage_Core_Exception $e) {
             echo Zend_Json::encode(array("success" => false, "error" => $e->getMessage()));return;
@@ -1014,7 +1025,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive customer address action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("error" => "please login first."));return;
+            echo Zend_Json::encode(array("error" => "请先登录"));return;
         }
         $address = $this->_newAddress();
         $customerId = $session->getCustomerId();
@@ -1036,7 +1047,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive edit address action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "pleased login first."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $address  = $this->_newAddress();
 
@@ -1096,7 +1107,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 echo Zend_Json::encode(array("success" => true, "data" => $data));
                 return;
             } else {
-                echo Zend_Json::encode(array("success" => false, "data" => "save address failed."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "保存地址失败"));return;
             }
         } catch (Mage_Core_Exception $e) {
             echo Zend_Json::encode(array("success" => false, "error" => $e->getMessage()));return;
@@ -1110,19 +1121,19 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive delete address action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "pleased login first."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $addressId = $this->getRequest()->getParam("id",false);
         if(!$addressId){
-            echo Zend_Json::encode(array("success" => false, "data" => "address id must bu provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要移除的地址"));return;
         }
         $address = $this->_newAddress()->load($addressId);
         if($address->getCustomerId() != $session->getCustomerId()){
-            echo Zend_Json::encode(array("success" => false, "data" => "an error occurred, this address no belong to you."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "系统错误，这个地址不属于你管理"));return;
         }
         try {
             $address->delete();
-            echo Zend_Json::encode(array("success" => true, "data" => "delete successfully."));return;
+            echo Zend_Json::encode(array("success" => true, "data" => "删除成功"));return;
         } catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));return;
         }
@@ -1135,12 +1146,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("get address info action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "please login first."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $addressId = $this->getRequest()->getParam("id",false);
         Mage::log("get address id is :".$addressId);
         if(!$addressId){
-            echo Zend_Json::encode(array("success" => false, "data" => "address must be provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要管理的地址"));return;
         }
         $address = $this->_newAddress()->getCollection()
             ->addAttributeToSelect("*")
@@ -1163,25 +1174,25 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         try {
             $customerId = Mage::getSingleton('customer/session')->getCustomerId();
             if(!$customerId){
-                echo Zend_Json::encode(array("success" => false, "data" => "please login first."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
             }
             $wishlist = Mage::getModel('wishlist/wishlist');
             $wishlist->loadByCustomer($customerId, true);
             if (!$wishlist->getId() || $wishlist->getCustomerId() != $customerId) {
                 $wishlist = null;
-                echo Zend_Json::encode(array("success" => false, "data" => "wishlist error."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "添加我的关注失败"));return;
             }
             $session = Mage::getSingleton('customer/session');
 
-            $productId = (int)$this->getRequest()->getParam('product',2);
+            $productId = (int)$this->getRequest()->getParam('product',false);
             if (!$productId) {
-                echo Zend_Json::encode(array("success" => false, "data" => "product must be provided."));
+                echo Zend_Json::encode(array("success" => false, "data" => "请选择你要关注的产品"));
                 return;
             }
 
             $product = Mage::getModel('catalog/product')->load($productId);
             if (!$product->getId() || !$product->isVisibleInCatalog()) {
-                echo Zend_Json::encode(array("success" => false, "data" => "product not exists."));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "该产品不存在"));return;
             }
 
             try {
@@ -1197,7 +1208,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     Mage::throwException($result);
                 }
                 $wishlist->save();
-                echo Zend_Json::encode(array("success" => true, "data" => "add wishlist successfully."));return;
+                echo Zend_Json::encode(array("success" => true, "data" => "关注成功"));return;
             } catch (Exception $e) {
                 echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
             }
@@ -1213,7 +1224,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive wishlist action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "please login first."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $customerId = $session->getCustomerId();
         $read = Mage::getSingleton('core/resource')->getConnection('core_read');
@@ -1293,17 +1304,17 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $id = (int) $this->getRequest()->getParam('item_id');
         $item = Mage::getModel('wishlist/item')->load($id);
         if (!$item->getId()) {
-            echo Zend_Json::encode(array("success" => false, "data" => "item id must be provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要移除的关注产品"));return;
         }
         $wishlist = $this->_getWishlist($item->getWishlistId());
         if (!$wishlist) {
-            echo Zend_Json::encode(array("success" => false, "data" => "wishlist error."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "系统错误，请联系管理员"));return;
         }
         try {
             $item->delete();
             $wishlist->save();
 
-            echo Zend_Json::encode(array("success" => true, "data" => "remove item successfully."));return;
+            echo Zend_Json::encode(array("success" => true, "data" => "成功移除"));return;
         } catch (Exception $e) {
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));return;
         }
@@ -1334,7 +1345,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $typeCom = $this->getRequest()->getParam('com',false);//快递公司
         $typeNu = $this->getRequest()->getParam('nu',false);  //快递单号
         if(!$typeCom || !$typeNu){
-            echo Zend_Json::encode(array("success" => false, "data" => "company or order must be provided."));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "快递公司和运单号不能为空"));return;
         }
         $AppKey='XXXXXX';
         $url ='http://api.kuaidi100.com/api?id='.$AppKey.'&com='.$typeCom.'&nu='.$typeNu.'&show=0&muti=1&order=asc';
@@ -1355,9 +1366,41 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         }else if($res['status'] == 0){
             echo Zend_Json::encode(array("success" => false, "data" => "暂时没有查询到物流信息，请稍后在查"));
         }else if($res['status'] == 2){
-            echo Zend_Json::encode(array("success" => false, "data" => "api error,please contact the administrator"));
+            echo Zend_Json::encode(array("success" => false, "data" => "系统错误，请联系管理员"));
         }
 
     }
 
+    /**
+     * function for upload image
+     */
+    public function _upload(){
+        //todo upload logic....
+        Mage::log("receive upload image function.");
+
+    }
+
+    /**
+     * api for get product by PN code
+     */
+    public function getProductByScanAction(){
+        Mage::log("receive get product by scan action.");
+        $pn_code = $this->getRequest()->getParam('pn_code',false);
+        Mage::log("pn code is:".$pn_code);
+        if(!$pn_code){
+            echo Zend_Json::encode(array("success" => false, "data" => "PN码没有获取到"));return;
+        }
+        $product = $this->_newProduct()->getCollection()
+            ->addAttributeToSelect("*")
+            ->addAttributeToFilter("pn",$pn_code)
+            ->load();
+        foreach($product as $pro){
+            $arr = array("id" => $pro->getData('entity_id'),
+                "sku" => $pro->getData('sku'),
+                "name" => $pro->getData('name'),
+                "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                "price" => $pro->getData('price'));
+        }
+        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+    }
 }

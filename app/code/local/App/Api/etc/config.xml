@@ -28,5 +28,13 @@
                 </entities>
             </Api_Mysql4>
         </models>
+        <resources>
+            <customerattribute_setup>
+                <setup>
+                    <module>App_Api</module>
+                    <class>App_Api_Model_Entity_Setup</class>
+                </setup>
+            </customerattribute_setup>
+        </resources>
     </global>
 </config>
