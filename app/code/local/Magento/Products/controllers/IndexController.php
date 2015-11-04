@@ -82,20 +82,42 @@ class Magento_Products_IndexController extends Mage_Core_Controller_Front_Action
         return Mage::getSingleton('customer/session');
     }
 
+    public function deAction(){
+        $customer = Mage::getModel('customer/customer')->setId(1)->delete();
+
+        var_dump($customer->getData());exit;
+    }
+
     public function getAction(){
         Mage::log("receive customer module.");
         try {
-            $customer = Mage::getModel('customer/customer');
-            /*$customer->getGroupId();
+            try{
+                $customer = Mage::getModel('customer/customer');
+                $customer->setGroupId(1);
+                $customer->setEmail('nimeimei@126.com');
+                $customer->setFirstname('ni');
+                $customer->setLastname('mei');
+                $customer->setPassword('1qaz2wsx');
+                $customer->setPhone('13556789090');
+                $customer->setHeadpic('/heda/a.png');
+                $customer->setConfirmation(null);
+                $customer->save();
+                var_dump($customer->getData());exit;
+            }catch (Exception $e){
+                echo $e->getMessage();
+            }
+
+            $customer->getGroupId();
             $customer->setId(null);
-            $customer->setData('firstname','wanghe');
-            $customer->setData('lastname','li');
+            $customer->setData('firstname','wanghe1');
+            $customer->setData('lastname','li1');
             $customer->setData('password','1qaz2wsx');
             $customer->setData('password_hash','9ea1693434ce4b84a23e9956738fe3ed:QiHTn2mrxqw1iki49GBH8DMZHLJ3FYvm');
             $customer->setData('phone','15532221111');
-            $customer->setData('email','nihao@163.com');
+            $customer->setData('email','nihao22@163.com');
+            $customer->setData('head_pic','headpic');
             $customer->save();
-            var_dump($customer);exit;*/
+            var_dump($customer->getData());exit;
             $cus = $customer->getCollection()
                 ->addAttributeToSelect("*")
                 ->load();

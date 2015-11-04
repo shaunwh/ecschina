@@ -17,25 +17,20 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function get_categories($categories){
         //这里的变量 $array 将存储的是所有目录信息
-        $array = '<ul>';
-
+        //{}
+        $array = array();
         foreach ($categories as $category) {
             $cat    = Mage::getModel('catalog/category')->load($category->getId());
-            $count  = $cat->getProductCount(); //$count 是该目录含有产品的数量
+            $count  = $cat->getProductCount();
 
-            $array .= '<li>'
-                . '<a href="' . Mage::getUrl($cat->getUrlPath()). '">' //获得到目录的 URL
-                . $category->getName() //显示目录名称
-                . "(".$count.")</a>"; //显示目录中产品数量
-
-            if ($category->hasChildren()) { //检查该目录是否含有子目录，如果有，则递归生成子目录
+            $array[] = array($category->getName(),$count);
+            if ($category->hasChildren()) {
                 $children = Mage::getModel('catalog/category')
                     ->getCategories($category->getId());
-                $array  .=  $this->get_categories($children); //递归生成子目录
+                $array .=  array($this->get_categories($children)); //递归生成子目录
             }
-            $array .= '</li>';
         }
-        return  $array . '</ul>';
+        return  $array;
     }
 
     /**
@@ -96,13 +91,25 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         return Mage::getModel('customer/address');
     }
 
+    public function testAction(){
+        $customer = $this->_newCustomer();
+        $cus = $customer->getCollection()
+            ->addAttributeToSelect("*")
+            ->load();
+        $arr = array();
+        foreach($cus as $cu){
+            $arr[] = $cu->getData();
+        }
+        var_dump($arr);exit;
+    }
+
     /**
      * api for user sign in
      */
     public function signInAction(){
         Mage::log("receive sign action.");
         $paras = $this->getRequest()->getParams();
-        if(empty($paras)){
+        if(empty($paras['email']) || empty($paras['name']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "邮箱、用户名、密码不能为空"));return;
         }
         //$session = $this->_getSession();
@@ -117,23 +124,30 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if($customer->getData('entity_id')){
             echo Zend_Json::encode(array("success" => false, "data" => "该邮箱已经注册"));return;
         }else{
-            $customer = $this->_newCustomer();
-            $customer->setGroupId(1);
-            $customer->setEmail($paras['email']);
-            $customer->setFirstname($paras['name']);
-            $customer->setLastname($paras['name']);
-            $customer->setPassword($paras['password']);
-            $customer->setPhone($paras['phone']);
-            $customer->setConfirmation(null);
-            $customer->save();
-            $data = $customer->getData();
-            if(!empty($data)){
-                $session = $this->_getSession();
-                $session->login($paras['email'],$paras['password']);
-                echo Zend_Json::encode(array("success" => true, "data" => $data));return;
-            }else{
-                echo Zend_Json::encode(array('success' => false, 'data' => '注册失败，请联系管理员'));
+            try{
+                $customer = $this->_newCustomer();
+                $customer->setGroupId(1);
+                $customer->setEmail($paras['email']);
+                $customer->setFirstname($paras['name']);
+                $customer->setLastname($paras['name']);
+                $customer->setPassword($paras['password']);
+                //$customer->setPhone($paras['phone']);
+                $customer->setConfirmation(null);
+                $customer->save();
+                $data = $customer->getData();
+                if(!empty($data)){
+                    $session = $this->_getSession();
+                    $session->login($paras['email'],$paras['password']);
+                    //$session->setCustomerAsLoggedIn($customer);
+                    //$session->renewSession();
+                    echo Zend_Json::encode(array("success" => true, "data" => $data));return;
+                }else{
+                    echo Zend_Json::encode(array('success' => false, 'data' => '注册失败，请联系管理员'));return;
+                }
+            }catch (Exception $e){
+                echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
             }
+
         }
 
     }
@@ -145,9 +159,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function _verifyMessage($mobile,$secret){
         $this->getResponse()->setHeader('Content-Type',"application/json; charset=utf-8");
 
-        $apiKey = "8cbe3cf619b14d74ae88b4ce7679ed66";
-        $appId = "98HIH8VJdj02";
-        $content = "【佳杰科技】您的验证码为：".$secret."，五分钟内有效，请尽快验证。";
+        $apiKey = "b7f07ccf974144d1ac13ba41dffbe87c";
+        $appId = "2qu1xj2Q05Q8";
+        $content = "【佳节科技】您的验证码为：".$secret."，五分钟内有效，请尽快验证。";
         $url = "https://sms.zhiyan.net/sms/match_send.json";
         $json_arr = array(
             "mobile" => $mobile,
@@ -176,7 +190,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function sendSmsAction(){
         Mage::log("receive verify message action.");
-        $mobile = $this->getRequest()->getParam('mobile',15210010339);
+        $mobile = $this->getRequest()->getParam('mobile',false);
         if(!$mobile){
             echo Zend_Json::encode(array("success" => false, "data" => "电话号码不能为空"));return;
         }
@@ -184,6 +198,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $result = $this->_verifyMessage($mobile,$secret);
         $res = json_decode($result,true);
         if($res['result'] == "SUCCESS"){
+            Mage::log("发送验证码到 $mobile 成功，验证码是 $secret");
             $session = $this->_getSession();
             $session->setData('mcode', array('mobile'=>$mobile, 'secret'=>$secret));
             echo Zend_Json::encode(array("success" => true, "data" => "发送验证码成功"));return;
@@ -198,10 +213,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function loginAction(){
         Mage::log("receive login action");
         $session = $this->_getSession();
-        if($session->isLoggedIn()){
+        /*if($session->isLoggedIn()){
             $customerData = $session->getCustomer()->getData();
             echo Zend_Json::encode(array("success" => true, "data" => $customerData));return;
-        }
+        }*/
         $paras = $this->getRequest()->getParams();
         if(empty($paras['username']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "用户名和密码不能为空"));return;
@@ -214,7 +229,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             if($mobileNu->getData('email')){
                 $paras['username'] = $mobileNu->getData('email');
             }else{
-                echo Zend_Json::encode(array("success" => false, "data" => "该用户不存在"));
+                echo Zend_Json::encode(array("success" => false, "data" => "该用户不存在"));return;
             }
         }
         try{
@@ -227,23 +242,44 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for user info
+     */
+    public function myInfoAction(){
+        Mage::log("receive my info action.");
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
+        $customer_data = $session->getCustomer()->getData();
+        echo Zend_Json::encode(array("success" => true, "data" => $customer_data));
+
+    }
+
+    /**
      * api for user logout
      */
     public function logoutAction(){
         Mage::log("receive logout action.");
-        $this->_getSession()->logout()
-            ->renewSession()
-            ->setBeforeAuthUrl($this->_getRefererUrl());
+        try{
+            $this->_getSession()->logout()
+                ->renewSession()
+                ->setBeforeAuthUrl($this->_getRefererUrl());
 
-        echo Zend_Json::encode(array("success" => true, "data" => "注销成功"));
+            echo Zend_Json::encode(array("success" => true, "data" => "注销成功"));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "dat" => $e->getMessage()));
+        }
+
     }
 
     /**
      * api for user to change password
      */
     public function changePasswordAction(){
+
         Mage::log("receive change password action.");
         $paras = $this->getRequest()->getParam('password',false);
+        $old_password = $this->getRequest()->getParam('old_password',false);
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
         Mage::log("get customerId is :".$customerId);
@@ -251,10 +287,20 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if($customerId){
             $customer = $this->_newCustomer();
             $customer->load($customerId);
-            $customer->setPassword($paras);
-            $customer->save();
-            $customer_data = $session->getCustomer()->getData();
-            echo Zend_Json::encode(array("success" => true, "data" => "$customer_data"));
+            $oldPass = $session->getCustomer()->getPasswordHash();
+            if (Mage::helper('core/string')->strpos($oldPass, ':')) {
+                list($_salt, $salt) = explode(':', $oldPass);
+            } else {
+                $salt = false;
+            }
+            if($oldPass == $customer->hashPassword($old_password,$salt)){
+                $customer->setPassword($paras);
+                $customer->save();
+                $session->login($customer->getData('email'),$paras);
+                $customer_data = $session->getCustomer()->getData();
+                echo Zend_Json::encode(array("success" => true, "data" => $customer_data));return;
+            }
+            echo Zend_Json::encode(array("success" => false, "data" => "旧密码验证错误"));return;
         }else{
             echo Zend_Json::encode(array("success" => false, "data" => "修改密码失败"));
         }
@@ -266,26 +312,49 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function postSmsCodeAction(){
         Mage::log("receive post sms code action.");
         $paras = $this->getRequest()->getParams();
+        Mage::log("paras is :".var_export($paras,true));
         //$paras = array("mobile" => 15210010339, "secret" => 847399);
         $session = $this->_getSession();
         $mCode = $session->getData('mcode');
         //echo Zend_Json::encode(array("data" => $mCode));exit;
         Mage::log("session code is :".var_export($mCode,true));
-        if(empty($paras)){
+        if(empty($paras['mobile']) || !isset($paras) || empty($paras['secret'])){
             echo Zend_Json::encode(array("success" => false, "data" => "请填写电话号码和验证码"));return;
         }
         if(!$mCode || $mCode['mobile'] != $paras['mobile'] || $mCode['secret'] != $paras['secret']){
             echo Zend_Json::encode(array("success" => false, "data" => "手机号码或者验证码不匹配"));return;
         }
         $customerId = $session->getCustomerId();
+        Mage::log("post sms customer id is :".$customerId);
+        $verify = $this->_verifyMobile($paras['mobile']);
+        Mage::log("verify mobile result is :".$verify);
         if($customerId){
             $customer = $this->_newCustomer()->load($customerId);
-            if($customer){
+            if($customer->getData("entity_id") && $verify){
                 $customer->setPhone($paras['mobile']);
                 $customer->save();
+                echo Zend_Json::encode(array("success" => true, "data" => array("entity_id" => $customerId)));return;
+            }else{
+                echo Zend_Json::encode(array("success" => false, "data" => "该手机号已经注册过，请使用其他手机号码"));return;
             }
         }
         echo Zend_Json::encode(array("success" => true, "data" => "验证成功"));return;
+    }
+
+    /**
+     * function for verify mobile
+     * @param $mobile
+     * @return bool
+     */
+    public function _verifyMobile($mobile){
+        $customer = $this->_newCustomer()->getCollection()
+            ->addAttributeToFilter("phone",$mobile)
+            ->load();
+        if($customer->getData("entity_id")){
+            return false;
+        }else{
+            return true;
+        }
     }
 
     /**
@@ -299,9 +368,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
            echo Zend_Json::encode(array("success" => false, "data" => "密码不能为空"));return;
        }
        $mCode = $session->getData('mcode');
-       $customer = $this->_newCustomer();
-       $customer->load('phone',$mCode['mobile']);
+       Mage::log("reset password get session data is :".var_export($mCode,true));
+       $customer = $this->_newCustomer()->getCollection()
+           ->addAttributeToFilter('phone', $mCode['mobile'])
+           ->getFirstItem();
        $email = $customer->getData('email');
+       Mage::log("get email is :".$email);
        if(!empty($email)){
            $customer->setPassword($password);
            $customer->save();
@@ -350,7 +422,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $categories = $this->get_categories($cate);
 
         //echo Zend_Json::encode(array("success" => true, "data" => $categories));
-        echo $categories;
+        var_dump($categories) ;
 
     }
 
@@ -389,9 +461,20 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                      "sku" => $pro->getData('sku'),
                      "name" => $pro->getData('name'),
                      "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                     "price" => $price);
+                     "price" => $price,
+                     "qty"   => $this->_getQty($pro->getData('entity_id'))
+            );
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
+    }
+
+    /**
+     * function for get product qty
+     * @param $product_id
+     * @return mixed
+     */
+    public function _getQty($product_id){
+        return Mage::getModel('cataloginventory/stock_item')->loadByProduct($product_id)->getQty();
     }
 
     /**
@@ -403,10 +486,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
         $categoryId = $this->getRequest()->getParam('categoryId');
-        $sortColumn = $this->getRequest()->getParam('sortColumn');
-        $sort = $this->getRequest()->getParam('sort');
-        $page = $this->getRequest()->getParam('page');
-        $pageSize = $this->getRequest()->getParam('pageSize');
+        $sortColumn = $this->getRequest()->getParam('sortColumn','price');
+        $sort = $this->getRequest()->getParam('sort','asc');
+        $page = $this->getRequest()->getParam('page',1);
+        $pageSize = $this->getRequest()->getParam('pageSize',10);
         $customer = Mage::getModel('customer/customer')->load($customerId);
         $groupId = $customer->getData('groupId');
         $product = $this->_newProduct()->getCollection()
@@ -427,9 +510,11 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 "sku" => $pro->getData('sku'),
                 "name" => $pro->getData('name'),
                 "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                "price" => $price);
+                "price" => $price,
+                "qty"   => $this->_getQty($pro->getData('entity_id'))
+            );
         }
-        echo Zend_Json::encode($arr);
+        echo Zend_Json::encode(array("success" => true, "data" => $arr));
     }
 
     /**
@@ -461,7 +546,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 "sku" => $pro->getData('sku'),
                 "name" => $pro->getData('name'),
                 "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                "price" => $price);
+                "price" => $price,
+                "qty"   => $this->_getQty($pro->getData('entity_id'))
+            );
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
     }
@@ -1377,7 +1464,28 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function _upload(){
         //todo upload logic....
         Mage::log("receive upload image function.");
+        $fileName = '';
+        if (isset($_FILES['attachment']['name']) && $_FILES['attachment']['name'] != '') {
+            try {
+                $fileName       = $_FILES['attachment']['name'];
+                $fileExt        = strtolower(substr(strrchr($fileName, ".") ,1));
+                $fileNamewoe    = rtrim($fileName, $fileExt);
+                $fileName       = preg_replace('/\s+', '', $fileNamewoe) . time() . '.' . $fileExt;
 
+                $uploader       = new Varien_File_Uploader('attachment');
+                $uploader->setAllowedExtensions(array('png', 'jpeg','gif','jpg'));
+                $uploader->setAllowRenameFiles(false);
+                $uploader->setFilesDispersion(false);
+                $path = Mage::getBaseDir('media') . DS . 'customer_image';
+                if(!is_dir($path)){
+                    mkdir($path, 0777, true);
+                }
+                $uploader->save($path . DS, $fileName );
+
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
     }
 
     /**
@@ -1403,4 +1511,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
     }
+
+    /**
+     * api for get categories
+     */
+    public function getCategoriesByCid(){
+        //todo 根据分类的id获取它下面的所有子分类
+    }
+
 }

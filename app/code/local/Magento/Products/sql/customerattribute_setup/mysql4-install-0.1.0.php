@@ -15,7 +15,7 @@ $entityTypeId     = $setup->getEntityTypeId('customer');
 $attributeSetId   = $setup->getDefaultAttributeSetId($entityTypeId);
 $attributeGroupId = $setup->getDefaultAttributeGroupId($entityTypeId, $attributeSetId);
 
-$setup->addAttribute('customer', 'phone', array(
+$setup->addAttribute('customer', 'headpic', array(
     'input'         => 'text',
 //    'type'          => 'int',
     'type'          => 'varchar',
@@ -29,11 +29,11 @@ $setup->addAttributeToGroup(
     $entityTypeId,
     $attributeSetId,
     $attributeGroupId,
-    'phone',
-    '999'  //sort_order
+    'headpic',
+    '998'  //sort_order
 );
 
-$oAttribute = Mage::getSingleton('eav/config')->getAttribute('customer', 'phone');
+$oAttribute = Mage::getSingleton('eav/config')->getAttribute('customer', 'headpic');
 $oAttribute->setData('used_in_forms', array('adminhtml_customer'));
 $oAttribute->save();
 
