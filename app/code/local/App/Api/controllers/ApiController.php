@@ -392,12 +392,22 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive edit user info action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $paras = $this->getRequest()->getParams();
-        $customer = $this->_newCustomer();
-        if($paras['name']){
+        $customerId = $session->getCustomerId();
+        $customer = $this->_newCustomer()->load($customerId);
+        if(!empty($paras['name']) && isset($paras['name'])){
             $customer->setName($paras['name']);
+        }
+        if(!empty($paras['company']) && isset($paras['company'])){
+            $customer->setPrefix($paras['company']);
+        }
+        if(!empty($paras['phone']) && isset($paras['phone'])){
+            $customer->setPhone($paras['phone']);
+        }
+        if(!empty($paras['email']) && isset($paras['email'])){
+            $customer->setEmail($paras['email']);
         }
         if($paras['gender']){
             $customer->setGender($paras['gender']);
@@ -405,8 +415,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
         try{
             $customer->save();
-
-            echo Zend_Json::encode(array("success" => true));
+            $session->login($paras['email'],$customer->getPassword());
+            $data = $session->getCustomer()->getData();
+            echo Zend_Json::encode(array("success" => true, "data" => $data));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -416,7 +427,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     /**
      * api for list categories
      */
-    public function listCategoriesAction(){
+    /*public function listCategoriesAction(){
         Mage::log("receive list category action.");
         $cate = $this->_newCategory()->getCategories(Mage::app()->getStore()->getRootCategoryId());
         $categories = $this->get_categories($cate);
@@ -424,48 +435,53 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         //echo Zend_Json::encode(array("success" => true, "data" => $categories));
         var_dump($categories) ;
 
-    }
+    }*/
 
     /**
      * api for list products
      */
-    public function listProductsAction(){
-        Mage::log("receive list products action");
+    public function searchProductsAction(){
+        Mage::log("receive search products action");
         $session = $this->_getSession();
-        /*if (!$session->isLoggedIn()) {
-            echo Zend_Json::encode(array("success" => false,"data" => "please login first."));return;
-        }*/
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
         $page = $this->getRequest()->getParam("page",1);
         $pageSize = $this->getRequest()->getParam("pageSize",10);
-        $orderBy = $this->getRequest()->getParam("orderBy","price");
-        $sort = $this->getRequest()->getParam("sort","asc");
-        $customer = Mage::getModel('customer/customer')->load($customerId);
-        $groupId = $customer->getData('groupId');
-        $products = Mage::getModel('catalog/product');
-        $list = $products->getCollection()
-            ->addAttributeToSelect("*")
-            ->addAttributeToSort($orderBy,$sort)
-            ->setCurPage($page)
-            ->setPageSize($pageSize)
-            ->load();
-        $arr = array();
-        foreach($list as $pro){
-            if($groupId == 2){
-                $price = $pro->getData('price');
-            }else{
-                $price = '暂无报价';
-            }
-            $arr[] = array("id" => $pro->getData('entity_id'),
-                     "sku" => $pro->getData('sku'),
-                     "name" => $pro->getData('name'),
-                     "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                     "price" => $price,
-                     "qty"   => $this->_getQty($pro->getData('entity_id'))
-            );
+        $search = $this->getRequest()->getParam("search",false);
+        if(!$search){
+            echo Zend_Json::encode(array("success" => false, "data" => "请输入你要搜索的产品名"));return;
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        try{
+            $customer = Mage::getModel('customer/customer')->load($customerId);
+            $groupId = $customer->getData('groupId');
+            $products = Mage::getModel('catalog/product');
+            $list = $products->getCollection()
+                ->addAttributeToSelect("*")
+                ->addAttributeToFilter("name",$search)
+                ->setCurPage($page)
+                ->setPageSize($pageSize)
+                ->load();
+            $count = $list->count();
+            $arr = array();
+            foreach($list as $pro){
+                if($groupId == 2){
+                    $price = $pro->getData('price');
+                }else{
+                    $price = '暂无报价';
+                }
+                $arr[] = array("id" => $pro->getData('entity_id'),
+                    "sku" => $pro->getData('sku'),
+                    "name" => $pro->getData('name'),
+                    "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "price" => $price,
+                    "qty"   => $this->_getQty($pro->getData('entity_id'))
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
     }
 
     /**
@@ -480,7 +496,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     /**
      * api for get products by category
      */
-    public function getProductByCategoryAction(){
+    /*public function getProductByCategoryAction(){
         Mage::log("receive get product by category action.");
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
@@ -515,7 +531,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             );
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
-    }
+    }*/
 
     /**
      * api for product info
@@ -523,8 +539,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function productInfoAction(){
         Mage::log("receive product info action.");
         $productId = $this->getRequest()->getParam("product_id",false);
+        Mage::log("product id is :".$productId);
+        $cId = $this->getRequest()->getParam("c_id",false);
         if(!$productId){
-            echo Zend_Json::encode(array("error" => "请选择产品"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择产品"));return;
         }
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
@@ -535,16 +553,17 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             ->addAttributeToSelect("*")
             ->addAttributeToFilter("entity_id",$productId)
             ->load();
-        $arr = array();
         foreach($product as $pro){
-            if($groupId == 2){
+            if($groupId == 2 || $cId == 6){
                 $price = $pro->getData('price');
             }else{
                 $price = '暂无报价';
             }
-            $arr[] = array("id" => $pro->getData('entity_id'),
+            $arr = array("id" => $pro->getData('entity_id'),
                 "sku" => $pro->getData('sku'),
                 "name" => $pro->getData('name'),
+                "pn" => $pro->getData('pn'),
+                "description" => $pro->getData('description'),
                 "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
                 "price" => $price,
                 "qty"   => $this->_getQty($pro->getData('entity_id'))
@@ -657,7 +676,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $session = $this->_getSession();
         if(!$session->isLoggedIn())
         {
-            echo Zend_Json::encode(array('error' => '请先登录'));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $cart = $this->_newCart();
 
@@ -666,7 +685,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $arr['count'] = $cart->getQuote()->getItemsCount();
         $arr['total_price'] = $cart->getQuote()->getGrandTotal();
         foreach($items as $item){
-            $arr['data'][] = array("productId" => $item->getProductId(),
+            $arr['data'][] = array(
+                    "id"               => $item->getId(),
+                    "productId"        => $item->getProductId(),
                     "productName"      => $item->getName(),
                     "sku"              => $item->getSku(),
                     "qty"              => $item->getQty(),
@@ -798,7 +819,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 "express" => $list->getData("shipping_amount"),
                 "order_qty" => $list->getData("total_qty_ordered"),
                 "order_date" => $list->getData("created_at"),
-                "customer_name" => $list->getData("customer_lastname").$list->getData("customer_firstname"),
+                "customer_name" => $list->getData("customer_lastname"),
                 "customer_email" => $list->getData("customer_email")
             );
         }
@@ -1419,43 +1440,11 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $res = $read->fetchAll($select);
         $arr = array();
         foreach($res as $item){
-            $arr[] = array("title" => $item['title'],"url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier'] );
+            $arr[] = array("title" => $item['title'],
+                "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier'] );
         }
-
+        var_dump($arr);exit;
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
-    }
-
-    /**
-     * api for delivery info
-     */
-    public function getDeliveryInfoAction(){
-        $typeCom = $this->getRequest()->getParam('com',false);//快递公司
-        $typeNu = $this->getRequest()->getParam('nu',false);  //快递单号
-        if(!$typeCom || !$typeNu){
-            echo Zend_Json::encode(array("success" => false, "data" => "快递公司和运单号不能为空"));return;
-        }
-        $AppKey='XXXXXX';
-        $url ='http://api.kuaidi100.com/api?id='.$AppKey.'&com='.$typeCom.'&nu='.$typeNu.'&show=0&muti=1&order=asc';
-        //请勿删除变量$powered 的信息，否者本站将不再为你提供快递接口服务。
-        $powered = '查询数据由：<a href="http://kuaidi100.com" target="_blank">KuaiDi100.Com （快递100）</a> 网站提供 ';
-        $curl = curl_init();
-        curl_setopt ($curl, CURLOPT_URL, $url);
-        curl_setopt ($curl, CURLOPT_HEADER,0);
-        curl_setopt ($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt ($curl, CURLOPT_USERAGENT,$_SERVER['HTTP_USER_AGENT']);
-        curl_setopt ($curl, CURLOPT_TIMEOUT,5);
-        $get_content = curl_exec($curl);
-        curl_close ($curl);
-
-        $res = json_decode($get_content,true);
-        if($res['status'] == 1){
-            echo Zend_Json::encode(array("success" => true, "data" => $res['data']));
-        }else if($res['status'] == 0){
-            echo Zend_Json::encode(array("success" => false, "data" => "暂时没有查询到物流信息，请稍后在查"));
-        }else if($res['status'] == 2){
-            echo Zend_Json::encode(array("success" => false, "data" => "系统错误，请联系管理员"));
-        }
-
     }
 
     /**
@@ -1515,8 +1504,154 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     /**
      * api for get categories
      */
-    public function getCategoriesByCid(){
-        //todo 根据分类的id获取它下面的所有子分类
+    public function getCategoriesByCidAction(){
+        Mage::log("receive get categories by category id action.");
+        $c_id = $this->getRequest()->getParam("c_id",false);
+        Mage::log("c_id is :".$c_id);
+        if(!$c_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "分类id必须"));return;
+        }
+        try{
+            $cate = $this->_newCategory()->getCategories($c_id);
+            $arr = array();
+            foreach ($cate as $category) {
+                $name   = $category->getName();
+                $id     = $category->getId();
+                $arr[] = array(
+                    "name"  => $name,
+                    "id"    => $id
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
     }
+
+    /**
+     * api for get product by category
+     */
+    public function getProductsByCidAction(){
+        Mage::log("receive get products by category id action.");
+        $session = $this->_getSession();
+        $customerId = $session->getCustomerId();
+        Mage::log("get customer id is :".$customerId);
+        $category_id = $this->getRequest()->getParam("c_id",false);
+        $sortColumn = $this->getRequest()->getParam('sortColumn');
+        $search = $this->getRequest()->getParam('search');
+        $sort = $this->getRequest()->getParam('sort','asc');
+        $page = $this->getRequest()->getParam('page',1);
+        $pageSize = $this->getRequest()->getParam('pageSize',10);
+        $customer = Mage::getModel('customer/customer')->load($customerId);
+        $groupId = $customer->getData('groupId');
+        Mage::log("customer group is :".$groupId);
+        if(!$category_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "请传入分类的id"));return;
+        }
+        try{
+            $products = Mage::getModel('catalog/category')->load($category_id)
+                ->getProductCollection();
+            $products->addAttributeToSelect('*');
+            $products->addAttributeToFilter('status', 1);
+            $products->addAttributeToFilter('visibility', 4);
+            if(!empty($sortColumn) && isset($sortColumn)){
+                $products->addAttributeToSort($sortColumn,$sort);
+            }
+            if(!empty($search) && isset($search)){
+                $products->addAttributeToFilter('name', $search);
+            }
+
+            //$products->getSelect()->limit(10,$postData['offset']);
+            $products->setCurPage($page);
+            $products->setPageSize($pageSize);
+            //$count = $products->count();
+            $arr = array();
+            $count = Mage::getModel('catalog/category')->load($category_id)
+                ->getProductCollection()->count();
+            $pages = ceil($count/$pageSize);
+            if($page > $pages){
+                echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));return;
+            }
+            foreach($products as $pro){
+                if($groupId == 2 || $category_id == 6){
+                    $price = $pro->getData('price');
+                }else{
+                    $price = '暂无报价';
+                }
+                $arr[] = array("id" => $pro->getData('entity_id'),
+                    "sku" => $pro->getData('sku'),
+                    "name" => $pro->getData('name'),
+                    "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "price" => $price,
+                    "qty"   => $this->_getQty($pro->getData('entity_id'))
+                );
+
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
+    }
+
+    /**
+     * function for get delivery code
+     */
+    public function _getDeliveryCode($order_id){
+        Mage::log("receive get delivery code function.");
+        $tracks = Mage::getModel('sales/order_shipment_track')
+            ->getCollection()
+            ->addFieldToFilter('order_id', $order_id);
+        foreach($tracks as $item){
+            $arr = array("track_number" => $item->getData("track_number"),"company" => $item["carrier_code"]);
+        }
+
+        return $arr;
+    }
+
+    /**
+     * api for delivery info
+     */
+    public function getDeliveryInfoAction(){
+        Mage::log("receive get delivery info action.");
+        $order_id = $this->getRequest()->getParam("order_id",false);
+        if(!$order_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择一个订单"));return;
+        }
+        $res = $this->_getDeliveryCode($order_id);
+        $typeCom = $res["company"];//快递公司
+        $typeNu = $res["track_number"];  //快递单号
+        if(empty($typeCom) || empty($typeNu)){
+            echo Zend_Json::encode(array("success" => false, "data" => "暂时还没有发货，请耐心等待"));return;
+        }
+        $AppKey='XXXXXX';
+        $url ='http://api.kuaidi100.com/api?id='.$AppKey.'&com='.$typeCom.'&nu='.$typeNu.'&show=0&muti=1&order=asc';
+        //请勿删除变量$powered 的信息，否者本站将不再为你提供快递接口服务。
+        $powered = '查询数据由：<a href="http://kuaidi100.com" target="_blank">KuaiDi100.Com （快递100）</a> 网站提供 ';
+        try{
+            $curl = curl_init();
+            curl_setopt ($curl, CURLOPT_URL, $url);
+            curl_setopt ($curl, CURLOPT_HEADER,0);
+            curl_setopt ($curl, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt ($curl, CURLOPT_USERAGENT,$_SERVER['HTTP_USER_AGENT']);
+            curl_setopt ($curl, CURLOPT_TIMEOUT,3);
+            $get_content = curl_exec($curl);
+            curl_close ($curl);
+
+            $res = json_decode($get_content,true);
+            if($res['status'] == 1){
+                echo Zend_Json::encode(array("success" => true, "data" => $res['data']));
+            }else if($res['status'] == 0){
+                echo Zend_Json::encode(array("success" => false, "data" => "暂时没有查询到物流信息，请稍后在查"));
+            }else if($res['status'] == 2){
+                echo Zend_Json::encode(array("success" => false, "data" => "系统错误，请联系管理员"));
+            }
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
+    }
+
 
 }
