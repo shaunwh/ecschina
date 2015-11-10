@@ -109,6 +109,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function signInAction(){
         Mage::log("receive sign action.");
         $paras = $this->getRequest()->getParams();
+        /*$paras = array("name" => "head2","email" => "head2@126.com","password" => "123456","head" => "/media/a.jpg","phone" => "15299994244");*/
         if(empty($paras['email']) || empty($paras['name']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "邮箱、用户名、密码不能为空"));return;
         }
@@ -131,7 +132,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $customer->setFirstname($paras['name']);
                 $customer->setLastname($paras['name']);
                 $customer->setPassword($paras['password']);
-                //$customer->setPhone($paras['phone']);
+                //$customer->setHead($paras['head']);
+                //customer->setPhone($paras['phone']);
                 $customer->setConfirmation(null);
                 $customer->save();
                 $data = $customer->getData();
@@ -314,6 +316,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $paras = $this->getRequest()->getParams();
         Mage::log("paras is :".var_export($paras,true));
         //$paras = array("mobile" => 15210010339, "secret" => 847399);
+        //session_start();
+        //Mage::log("var dump session is:".var_export($_SESSION,true));
         $session = $this->_getSession();
         $mCode = $session->getData('mcode');
         //echo Zend_Json::encode(array("data" => $mCode));exit;
@@ -411,6 +415,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         }
         if($paras['gender']){
             $customer->setGender($paras['gender']);
+        }
+        if(!empty($paras['path']) && isset($paras['path'])){
+            $head = $this->_upload();
+            if($head){
+                $customer->setHead($head);
+            }
         }
 
         try{
@@ -1451,28 +1461,29 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      * function for upload image
      */
     public function _upload(){
-        //todo upload logic....
         Mage::log("receive upload image function.");
         $fileName = '';
-        if (isset($_FILES['attachment']['name']) && $_FILES['attachment']['name'] != '') {
+        if (isset($_FILES['image']['name']) && $_FILES['image']['name'] != '') {
             try {
-                $fileName       = $_FILES['attachment']['name'];
+                $fileName       = $_FILES['image']['name'];
                 $fileExt        = strtolower(substr(strrchr($fileName, ".") ,1));
                 $fileNamewoe    = rtrim($fileName, $fileExt);
                 $fileName       = preg_replace('/\s+', '', $fileNamewoe) . time() . '.' . $fileExt;
 
-                $uploader       = new Varien_File_Uploader('attachment');
+                $uploader       = new Varien_File_Uploader('image');
                 $uploader->setAllowedExtensions(array('png', 'jpeg','gif','jpg'));
                 $uploader->setAllowRenameFiles(false);
                 $uploader->setFilesDispersion(false);
-                $path = Mage::getBaseDir('media') . DS . 'customer_image';
+                $path = Mage::getBaseDir('media') . DS . 'head';
                 if(!is_dir($path)){
                     mkdir($path, 0777, true);
                 }
                 $uploader->save($path . DS, $fileName );
 
+                return $path.$fileName;
+
             } catch (Exception $e) {
-                $error = $e->getMessage();
+                echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
             }
         }
     }
