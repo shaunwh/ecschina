@@ -109,7 +109,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function signInAction(){
         Mage::log("receive sign action.");
         $paras = $this->getRequest()->getParams();
-        /*$paras = array("name" => "head2","email" => "head2@126.com","password" => "123456","head" => "/media/a.jpg","phone" => "15299994244");*/
+        //$paras = array("name" => "hea6691","email" => "head666@126.com","password" => "123456","head" => "/media/a.jpg","phone" => "15299994213");
         if(empty($paras['email']) || empty($paras['name']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "邮箱、用户名、密码不能为空"));return;
         }
@@ -133,7 +133,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $customer->setLastname($paras['name']);
                 $customer->setPassword($paras['password']);
                 //$customer->setHead($paras['head']);
-                //customer->setPhone($paras['phone']);
+                //$customer->setPhone($paras['phone']);
                 $customer->setConfirmation(null);
                 $customer->save();
                 $data = $customer->getData();
@@ -161,9 +161,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function _verifyMessage($mobile,$secret){
         $this->getResponse()->setHeader('Content-Type',"application/json; charset=utf-8");
 
-        $apiKey = "b7f07ccf974144d1ac13ba41dffbe87c";
-        $appId = "2qu1xj2Q05Q8";
-        $content = "【佳节科技】您的验证码为：".$secret."，五分钟内有效，请尽快验证。";
+        $apiKey = "7cf6493146d440d5a20d7d04821981c1";
+        $appId = "inY1447Vi91e";
+        $content = "【佳杰科技】您的验证码为：".$secret."，五分钟内有效，请尽快验证。";
         $url = "https://sms.zhiyan.net/sms/match_send.json";
         $json_arr = array(
             "mobile" => $mobile,
@@ -215,10 +215,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function loginAction(){
         Mage::log("receive login action");
         $session = $this->_getSession();
-        /*if($session->isLoggedIn()){
+        if($session->isLoggedIn()){
             $customerData = $session->getCustomer()->getData();
             echo Zend_Json::encode(array("success" => true, "data" => $customerData));return;
-        }*/
+        }
         $paras = $this->getRequest()->getParams();
         if(empty($paras['username']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "用户名和密码不能为空"));return;
@@ -252,8 +252,14 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
-        $customer_data = $session->getCustomer()->getData();
-        echo Zend_Json::encode(array("success" => true, "data" => $customer_data));
+        try{
+            $customer_id = $session->getCustomerId();
+            $customer = $this->_newCustomer()->load($customer_id);
+            $customer_data = $customer->getData();
+            echo Zend_Json::encode(array("success" => true, "data" => $customer_data));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
 
     }
 
@@ -413,20 +419,23 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if(!empty($paras['email']) && isset($paras['email'])){
             $customer->setEmail($paras['email']);
         }
-        if($paras['gender']){
+        /*if(!empty($paras['gender']) && isset($paras['gender'])){
             $customer->setGender($paras['gender']);
-        }
+        }*/
         if(!empty($paras['path']) && isset($paras['path'])){
             $head = $this->_upload();
+            Mage::log("upload file name is:".$head);
             if($head){
-                $customer->setHead($head);
+                $customer->setHead("/head/".$head);
             }
         }
 
         try{
             $customer->save();
-            $session->login($paras['email'],$customer->getPassword());
-            $data = $session->getCustomer()->getData();
+            //Mage::log("edit user info email is :".$customer->getEmail()." password is :".$customer->getData("password"));
+            //$session->login($customer->getEmail(),$customer->getData("password"));
+            $data = $customer->getData();
+            Mage::log("user data is :".var_export($data,true));
             echo Zend_Json::encode(array("success" => true, "data" => $data));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
@@ -1137,25 +1146,73 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for set default address action.
+     */
+    public function setDefaultAddressAction(){
+        Mage::log("receive set default address action.");
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
+        $address_id = $this->getRequest()->getParam("address_id",false);
+        if(!$address_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择一个地址"));return;
+        }
+        try{
+            $address = $this->_newAddress()->load($address_id);
+            $address->setCustomerId($session->getId())
+                ->setIsDefaultBilling(true)
+                ->setIsDefaultShipping(true);
+            $address->save();
+            echo Zend_Json::encode(array("success" => true, "data" => "设置成功"));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
+    }
+
+    /**
      * api for customer get address list
      */
     public function listAddressAction(){
         Mage::log("receive customer address action.");
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
-            echo Zend_Json::encode(array("error" => "请先登录"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
-        $address = $this->_newAddress();
-        $customerId = $session->getCustomerId();
-        $address_collection = $address->getCollection()
-            ->addAttributeToSelect("*")
-            ->addAttributeToFilter('parent_id',$customerId)
-            ->load();
-        $arr = array();
-        foreach($address_collection as $item){
-            $arr[] = $item->getData();
+        try{
+            $address = $this->_newAddress();
+            $customerId = $session->getCustomerId();
+            $defaultAddressId = $this->_newCustomer()->load($customerId)->getData("default_shipping");
+            $address_collection = $address->getCollection()
+                ->addAttributeToSelect("*")
+                ->addAttributeToFilter('parent_id',$customerId)
+                ->load();
+            $arr = array();
+            foreach($address_collection as $item){
+                if(!empty($defaultAddressId) && $defaultAddressId == $item->getData("entity_id")){
+                    $default = true;
+                }else{
+                    $default = false;
+                }
+                $arr[] = array(
+                    "entity_id" => $item->getData("entity_id"),
+                    "firstname" => $item->getData("firstname"),
+                    "lastname" => $item->getData("lastname"),
+                    "company" => $item->getData("company"),
+                    "street" => $item->getData("street"),
+                    "city" => $item->getData("city"),
+                    "telephone" => $item->getData("telephone"),
+                    "country_id" => $item->getData("country_id"),
+                    "postcode" => $item->getData("postcode"),
+                    "default_shipping" => $default
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+
     }
 
     /**
@@ -1276,7 +1333,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             ->addAttributeToFilter("entity_id",$addressId)
             ->load();
         foreach($address as $add){
-            $arr[] = $add->getData();
+            $arr = $add->getData();
         }
         //$addressInfo = $address->getData();
 
@@ -1463,6 +1520,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function _upload(){
         Mage::log("receive upload image function.");
         $fileName = '';
+        Mage::log("upload files is :".var_export($_FILES,true));
         if (isset($_FILES['image']['name']) && $_FILES['image']['name'] != '') {
             try {
                 $fileName       = $_FILES['image']['name'];
@@ -1480,7 +1538,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 }
                 $uploader->save($path . DS, $fileName );
 
-                return $path.$fileName;
+                return $fileName;
 
             } catch (Exception $e) {
                 echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
@@ -1633,23 +1691,35 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $res = $this->_getDeliveryCode($order_id);
         $typeCom = $res["company"];//快递公司
         $typeNu = $res["track_number"];  //快递单号
-        if(empty($typeCom) || empty($typeNu)){
-            echo Zend_Json::encode(array("success" => false, "data" => "暂时还没有发货，请耐心等待"));return;
-        }
+        //if(empty($typeCom) || empty($typeNu)){
+            //echo Zend_Json::encode(array("success" => false, "data" => "暂时还没有发货，请耐心等待"));return;
+        //}
         $AppKey='XXXXXX';
         $url ='http://api.kuaidi100.com/api?id='.$AppKey.'&com='.$typeCom.'&nu='.$typeNu.'&show=0&muti=1&order=asc';
         //请勿删除变量$powered 的信息，否者本站将不再为你提供快递接口服务。
         $powered = '查询数据由：<a href="http://kuaidi100.com" target="_blank">KuaiDi100.Com （快递100）</a> 网站提供 ';
         try{
-            $curl = curl_init();
+            /*$curl = curl_init();
             curl_setopt ($curl, CURLOPT_URL, $url);
             curl_setopt ($curl, CURLOPT_HEADER,0);
             curl_setopt ($curl, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt ($curl, CURLOPT_USERAGENT,$_SERVER['HTTP_USER_AGENT']);
             curl_setopt ($curl, CURLOPT_TIMEOUT,3);
             $get_content = curl_exec($curl);
-            curl_close ($curl);
-
+            curl_close ($curl);*/
+            $get_content = '{"message":"ok","status":"1","state":"3","data":
+            [{"time":"2012-07-07 13:35:14","context":"客户已签收"},
+             {"time":"2012-07-07 09:10:10","context":"离开 [北京石景山营业厅] 派送中，递送员[温]，电话[]"},
+             {"time":"2012-07-06 19:46:38","context":"到达 [北京石景山营业厅]"},
+             {"time":"2012-07-06 15:22:32","context":"离开 [北京石景山营业厅] 派送中，递送员[温]，电话[]"},
+             {"time":"2012-07-06 15:05:00","context":"到达 [北京石景山营业厅]"},
+             {"time":"2012-07-06 13:37:52","context":"离开 [北京_同城中转站] 发往 [北京石景山营业厅]"},
+             {"time":"2012-07-06 12:54:41","context":"到达 [北京_同城中转站]"},
+             {"time":"2012-07-06 11:11:03","context":"离开 [北京运转中心驻站班组] 发往 [北京_同城中转站]"},
+             {"time":"2012-07-06 10:43:21","context":"到达 [北京运转中心驻站班组]"},
+             {"time":"2012-07-05 21:18:53","context":"离开 [福建_厦门支公司] 发往 [北京运转中心_航空]"},
+             {"time":"2012-07-05 20:07:27","context":"已取件，到达 [福建_厦门支公司]"}
+            ]}';
             $res = json_decode($get_content,true);
             if($res['status'] == 1){
                 echo Zend_Json::encode(array("success" => true, "data" => $res['data']));

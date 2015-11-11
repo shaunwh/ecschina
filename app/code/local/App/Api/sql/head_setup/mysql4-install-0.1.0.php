@@ -19,7 +19,7 @@ $setup->addAttribute('customer', 'head', array(
     'input'         => 'text',
 //    'type'          => 'int',
     'type'          => 'varchar',
-    'label'         => 'Some textual description',
+    'label'         => 'head_pic',
     'visible'       => 1,
     'required'      => 0,
     'user_defined' => 1,
@@ -30,7 +30,7 @@ $setup->addAttributeToGroup(
     $attributeSetId,
     $attributeGroupId,
     'head',
-    '1001'  //sort_order
+    '999'  //sort_order
 );
 
 $oAttribute = Mage::getSingleton('eav/config')->getAttribute('customer', 'head');
