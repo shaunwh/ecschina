@@ -109,7 +109,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function signInAction(){
         Mage::log("receive sign action.");
         $paras = $this->getRequest()->getParams();
-        //$paras = array("name" => "hea6691","email" => "head666@126.com","password" => "123456","head" => "/media/a.jpg","phone" => "15299994213");
+        //$paras = array("name" => "qwe","email" => "qwe@126.com","password" => "123456","head" => "this is head test","phone" => "1554434332333");
         if(empty($paras['email']) || empty($paras['name']) || empty($paras['password'])){
             echo Zend_Json::encode(array("success" => false, "data" => "邮箱、用户名、密码不能为空"));return;
         }
@@ -255,7 +255,26 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         try{
             $customer_id = $session->getCustomerId();
             $customer = $this->_newCustomer()->load($customer_id);
-            $customer_data = $customer->getData();
+            //$customer_data = $customer->getData();
+            /*if(!$customer->getData("head")){
+                $head = Mage::getBaseUrl('media').$customer->getData("head");
+            }else{
+                $head = "";
+            }*/
+            $head = $customer->getData("head");
+            if(empty($head) || !$head){
+                $url = "";
+            }else{
+                $url = Mage::getBaseUrl('media').$head;
+            }
+            $customer_data = array(
+                "id"      => $customer->getData("entity_id"),
+                "name"    => $customer->getData("firstname"),
+                "company" => $customer->getData("prefix"),
+                "phone"   => $customer->getData("phone"),
+                "head"    => $url,
+                "email"   => $customer->getData("email")
+            );
             echo Zend_Json::encode(array("success" => true, "data" => $customer_data));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
@@ -434,9 +453,22 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $customer->save();
             //Mage::log("edit user info email is :".$customer->getEmail()." password is :".$customer->getData("password"));
             //$session->login($customer->getEmail(),$customer->getData("password"));
-            $data = $customer->getData();
-            Mage::log("user data is :".var_export($data,true));
-            echo Zend_Json::encode(array("success" => true, "data" => $data));
+            /*$head = $customer->getData("head");
+            if(empty($head) || !$head){
+                $url = "";
+            }else{
+                $url = Mage::getBaseUrl('media').$head;
+            }
+            $customer_data = array(
+                "id"      => $customer->getData("entity_id"),
+                "name"    => $customer->getData("firstname"),
+                "company" => $customer->getData("prefix"),
+                "phone"   => $customer->getData("phone"),
+                "head"    => $url,
+                "email"   => $customer->getData("email")
+            );
+            Mage::log("user data is :".var_export($customer_data,true));*/
+            echo Zend_Json::encode(array("success" => true, "data" => "修改成功"));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -1402,29 +1434,39 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         $customerId = $session->getCustomerId();
-        $read = Mage::getSingleton('core/resource')->getConnection('core_read');
-        $sql = "select a.wishlist_id, b.product_id, b.qty, b.wishlist_item_id from wishlist as a left join wishlist_item as b on a.wishlist_id = b.wishlist_id where a.customer_id = "."'$customerId'";
-        $res = $read->fetchAll($sql);
-        $arr = array();
-        foreach($res as $item){
-            $product_id = $item['product_id'];
-            $product = $this->_newProduct()->load($product_id);
-            $name = $product->getData('name');
-            $price = $product->getPrice();
-            $image = $product->getData('small_image');
-            $qty = $item['qty'];
-            $item_id = $item['wishlist_item_id'];
-
-            $arr[] = array(
-                "product_id" => $product_id,
-                "item_id" => $item_id,
-                "name" => $name,
-                "price" => $price,
-                "image" => Mage::getBaseUrl('media').'catalog/category'.$image,
-                "qty" => $qty,
-            );
+        $category_id = $this->getRequest()->getParam("c_id",false);
+        Mage::log("category id is :".$category_id);
+        if(!$category_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择一个分类"));return;
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        try{
+            $read = Mage::getSingleton('core/resource')->getConnection('core_read');
+            $sql = "select a.wishlist_id, b.product_id, b.qty, b.wishlist_item_id from wishlist as a left join wishlist_item as b on a.wishlist_id = b.wishlist_id left join catalog_category_product as c on c.product_id = b.product_id where a.customer_id = "."'$customerId'"." and c.category_id = "."'$category_id'";
+            $res = $read->fetchAll($sql);
+            $arr = array();
+            foreach($res as $item){
+                $product_id = $item['product_id'];
+                $product = $this->_newProduct()->load($product_id);
+                $name = $product->getData('name');
+                $price = $product->getPrice();
+                $image = $product->getData('small_image');
+                $qty = $item['qty'];
+                $item_id = $item['wishlist_item_id'];
+
+                $arr[] = array(
+                    "product_id" => $product_id,
+                    "item_id" => $item_id,
+                    "name" => $name,
+                    "price" => $price,
+                    "image" => Mage::getBaseUrl('media').'catalog/category'.$image,
+                    "qty" => $qty,
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
     }
 
     /**

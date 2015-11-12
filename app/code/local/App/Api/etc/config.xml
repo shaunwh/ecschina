@@ -35,12 +35,6 @@
                     <class>App_Api_Model_Entity_Setup</class>
                 </setup>
             </customerattribute_setup>
-            <head_setup>
-                <setup>
-                    <module>App_Api</module>
-                    <class>App_Api_Model_Entity_Setup</class>
-                </setup>
-            </head_setup>
         </resources>
     </global>
 </config>
