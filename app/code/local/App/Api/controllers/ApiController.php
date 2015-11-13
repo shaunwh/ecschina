@@ -15,7 +15,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     /**
      * get categories tree
      */
-    public function get_categories($categories){
+    /*public function get_categories($categories){
         //这里的变量 $array 将存储的是所有目录信息
         //{}
         $array = array();
@@ -31,7 +31,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             }
         }
         return  $array;
-    }
+    }*/
 
     /**
      * new customer session
@@ -675,6 +675,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive add cart action.");
         $cart = $this->_newCart();
         $params = $this->getRequest()->getParams();
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
         //$params = array("qty" => 100, "product_id" => 2);
         try {
             if (isset($params['qty'])) {
@@ -766,6 +770,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function updateCartAction(){
         Mage::log("receive update cart action.");
         $updateAction = (string)$this->getRequest()->getParam('update_cart_action');
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "登录过期，请重新登录"));return;
+        }
         Mage::log("update action is :".$updateAction);
         switch ($updateAction) {
             case 'empty_cart':
@@ -785,12 +793,21 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     protected function _updateShoppingCart()
     {
         try {
-            $cartData = $this->getRequest()->getParam('cart');
-            //$cartData = array("7" => array("qty" => 12),"8" => array("qty" => 12));
+            $cartData = $this->getRequest()->getParam("cart",false);
+            //批量更新$cartData = array("7" => array("qty" => 12),"8" => array("qty" => 12));
+            //单个更新$cartData = array("id" => 8, "qty" => 1);
+            $cartData = json_decode($cartData,true);
+            Mage::log("update cart products list is :".var_export($cartData,true));
             if (is_array($cartData)) {
                 $filter = new Zend_Filter_LocalizedToNormalized(
                     array('locale' => Mage::app()->getLocale()->getLocaleCode())
                 );
+                //foreach ($cartData as $data) {
+                    //if (isset($cartData['qty'])) {
+                        //$id = $cartData['id'];
+                        //$cartData[$id]['qty'] = $filter->filter(trim($cartData['qty']));
+                    //}
+                //}
                 foreach ($cartData as $index => $data) {
                     if (isset($data['qty'])) {
                         $cartData[$index]['qty'] = $filter->filter(trim($data['qty']));
@@ -804,9 +821,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $cartData = $cart->suggestItemsQty($cartData);
                 $cart->updateItems($cartData)
                     ->save();
+                $this->_getSession()->setCartWasUpdated(true);
+                echo Zend_Json::encode(array("success" => true, "data" => "成功更新购物车"));return;
             }
-            $this->_getSession()->setCartWasUpdated(true);
-            echo Zend_Json::encode(array("success" => true, "data" => "成功更新购物车"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "修改购物车失败"));return;
         } catch (Mage_Core_Exception $e) {
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -833,6 +851,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function deleteCartAction(){
         Mage::log("receive delete cart action.");
         $id = (int) $this->getRequest()->getParam('id');
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
         if ($id) {
             try {
                 $this->_newCart()->removeItem($id)
@@ -854,27 +876,32 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
         if(!$customerId){
-            echo Zend_Json::encode(array("error" => "请先登录"));return;
+            echo Zend_Json::encode(array("succuss" => false, "data" => "请先登录"));return;
         }
-        $order = $this->_newOrder()->getCollection()
-            ->addAttributeToSelect("*")
-            ->addAttributeToFilter("customer_id",$customerId)
-            ->load();
-        $arr = array();
-        foreach($order as $list){
-            $arr[] = array("id" => $list->getData("entity_id"),
-                "status" => $list->getData("status"),
-                "order_code" => $list->getData("increment_id"),
-                "order_price" => $list->getData("subtotal"),
-                "total_price" => $list->getData("grand_total"),
-                "express" => $list->getData("shipping_amount"),
-                "order_qty" => $list->getData("total_qty_ordered"),
-                "order_date" => $list->getData("created_at"),
-                "customer_name" => $list->getData("customer_lastname"),
-                "customer_email" => $list->getData("customer_email")
-            );
+        try{
+            $order = $this->_newOrder()->getCollection()
+                ->addAttributeToSelect("*")
+                ->addAttributeToFilter("customer_id",$customerId)
+                ->load();
+            $arr = array();
+            foreach($order as $list){
+                $arr[] = array("id" => $list->getData("entity_id"),
+                    "status" => $list->getData("status"),
+                    "order_code" => $list->getData("increment_id"),
+                    "order_price" => $list->getData("subtotal"),
+                    "total_price" => $list->getData("grand_total"),
+                    "express" => $list->getData("shipping_amount"),
+                    "order_qty" => $list->getData("total_qty_ordered"),
+                    "order_date" => $list->getData("created_at"),
+                    "customer_name" => $list->getData("customer_lastname"),
+                    "customer_email" => $list->getData("customer_email")
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+
     }
 
     /**
@@ -884,7 +911,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive order info action.");
         $order_id = $this->getRequest()->getParam('id',false);
         if(!$order_id){
-            echo Zend_Json::encode(array('error' => '请选择你索要查看的订单'));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你索要查看的订单"));return;
         }
         //product items
         //http://blog.sina.com.cn/s/blog_8a69598a0101kbsr.html
@@ -904,7 +931,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive cancel order action.");
         $order_id = $this->getRequest()->getParam("id",false);
         if(!$order_id){
-            echo Zend_Json::encode(array("error" => "请选择你要取消的订单"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要取消的订单"));return;
         }
         $order = $this->_newOrder()->load($order_id);
         $res = $order->cancel();
@@ -996,7 +1023,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                         echo Zend_Json::encode(array("success" => false, "data" => "保存收货地址失败"));return;
                     }
                 } catch (Mage_Core_Exception $e) {
-                    echo Zend_Json::encode(array("success" => false, "error" => $e->getMessage()));return;
+                    echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));return;
                 }
             }
             $billing        = $customer->getAddressItemById($addressId);
@@ -1066,6 +1093,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             //请先确认你所输的产品是否存在， 这里我输的产品号 Id 是 43
             $subTotal = 0;
             $products = $this->getRequest()->getParam('products',false);
+            $products = json_decode($products,true);
+            Mage::log("save order products list is :".var_export($products,true));
             //$products = array(
             //    '2' => array('qty' => 3),
              //   '1' => array('qty' => 1)
@@ -1166,8 +1195,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
             if (count($errors) === 0) {
                 $address->save();
-                $data = $address->getData();
-                echo Zend_Json::encode(array("success" => true, "data" => $data));
+                //$data = $address->getData();
+                echo Zend_Json::encode(array("success" => true, "data" => "保存成功"));
                 return;
             } else {
                 echo Zend_Json::encode(array("success" => false, "data" => "保存收货地址失败"));return;
@@ -1310,11 +1339,11 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
             if (count($errors) === 0) {
                 $address->save();
-                $data = $address->getData();
-                echo Zend_Json::encode(array("success" => true, "data" => $data));
+                //$data = $address->getData();
+                echo Zend_Json::encode(array("success" => true, "data" => "修改成功"));
                 return;
             } else {
-                echo Zend_Json::encode(array("success" => false, "data" => "保存地址失败"));return;
+                echo Zend_Json::encode(array("success" => false, "data" => "修改失败"));return;
             }
         } catch (Mage_Core_Exception $e) {
             echo Zend_Json::encode(array("success" => false, "error" => $e->getMessage()));return;
@@ -1391,7 +1420,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             }
             $session = Mage::getSingleton('customer/session');
 
-            $productId = (int)$this->getRequest()->getParam('product',false);
+            $productId = (int)$this->getRequest()->getParam('id',false);
             if (!$productId) {
                 echo Zend_Json::encode(array("success" => false, "data" => "请选择你要关注的产品"));
                 return;
@@ -1607,7 +1636,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 "sku" => $pro->getData('sku'),
                 "name" => $pro->getData('name'),
                 "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                "price" => $pro->getData('price'));
+                "price" => $pro->getData('price'),
+                "qty"   => $this->_getQty($pro->getData('entity_id'))
+            );
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));
     }
@@ -1617,7 +1648,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getCategoriesByCidAction(){
         Mage::log("receive get categories by category id action.");
-        $c_id = $this->getRequest()->getParam("c_id",false);
+        $c_id = $this->getRequest()->getParam("c_id",3);
         Mage::log("c_id is :".$c_id);
         if(!$c_id){
             echo Zend_Json::encode(array("success" => false, "data" => "分类id必须"));return;
@@ -1628,9 +1659,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             foreach ($cate as $category) {
                 $name   = $category->getName();
                 $id     = $category->getId();
+                $img    = Mage::getModel('catalog/category')->load($id)->getImageUrl();
+                //$img    = Mage::getBaseUrl('media').'catalog/category/'.Mage::getModel('catalog/category')->load($id)->getThumbnail();
                 $arr[] = array(
                     "name"  => $name,
-                    "id"    => $id
+                    "id"    => $id,
+                    "image" => $img
                 );
             }
             echo Zend_Json::encode(array("success" => true, "data" => $arr));
