@@ -924,17 +924,29 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("receive order info action.");
         $order_id = $this->getRequest()->getParam('id',false);
         if(!$order_id){
-            echo Zend_Json::encode(array("success" => false, "data" => "请选择你索要查看的订单"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要查看的订单"));return;
         }
         //product items
         //http://blog.sina.com.cn/s/blog_8a69598a0101kbsr.html
-        //todo 根据实际需要的字段来展示对应的数据
         $data = array();
-        $order = $this->_newOrder()->load($order_id);
-        foreach($order->getAllItems() as $item){
-            $data[] = $item->getData();
+        try{
+            $order = $this->_newOrder()->load($order_id);
+            foreach($order->getAllItems() as $item){
+                $image = $this->_getProductImage($item->getData("product_id"));
+                $data[] = array(
+                    "id" => $item->getData("order_id"),
+                    "name" => $item->getData("name"),
+                    "price" => $item->getData("price"),
+                    "product_id" => $item->getData("product_id"),
+                    "qty_ordered" => $item->getData("qty_ordered"),
+                    "image" => $image
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $data));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $data));
+
     }
 
     /**
@@ -946,9 +958,14 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if(!$order_id){
             echo Zend_Json::encode(array("success" => false, "data" => "请选择你要取消的订单"));return;
         }
-        $order = $this->_newOrder()->load($order_id);
-        $res = $order->cancel();
-        echo Zend_Json::encode(array("success" => true, "data" => $res));
+        try{
+            $order = $this->_newOrder()->load($order_id);
+            $res = $order->cancel();
+            echo Zend_Json::encode(array("success" => true, "data" => $res));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
     }
 
     /**
@@ -1236,6 +1253,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             if($item){
                 $arr = array(
                     "id"        => $item->getData("entity_id"),
+                    "city"      => $item->getData("city"),
                     "name"      => $item->getData("firstname"),
                     "company"   => $item->getData("company"),
                     "telephone" => $item->getData("telephone"),
