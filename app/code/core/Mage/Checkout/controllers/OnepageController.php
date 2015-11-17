@@ -367,10 +367,7 @@ class Mage_Checkout_OnepageController extends Mage_Checkout_Controller_Action
         }
         if ($this->getRequest()->isPost()) {
             $data = $this->getRequest()->getPost('billing', array());
-            var_dump($data);
-            echo '--------';
             $customerAddressId = $this->getRequest()->getPost('billing_address_id', false);
-            echo $customerAddressId;exit;
             if (isset($data['email'])) {
                 $data['email'] = trim($data['email']);
             }

@@ -523,7 +523,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $arr[] = array("id" => $pro->getData('entity_id'),
                     "sku" => $pro->getData('sku'),
                     "name" => $pro->getData('name'),
-                    "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "image" => $pro->getSmallImageUrl(),
                     "price" => $price,
                     "qty"   => $this->_getQty($pro->getData('entity_id'))
                 );
@@ -595,32 +596,38 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         if(!$productId){
             echo Zend_Json::encode(array("success" => false, "data" => "请选择产品"));return;
         }
-        $session = $this->_getSession();
-        $customerId = $session->getCustomerId();
-        Mage::log("get customer id is :".$customerId);
-        $customer = Mage::getModel('customer/customer')->load($customerId);
-        $groupId = $customer->getData('groupId');
-        $product = $this->_newProduct()->getCollection()
-            ->addAttributeToSelect("*")
-            ->addAttributeToFilter("entity_id",$productId)
-            ->load();
-        foreach($product as $pro){
-            if($groupId == 2 || $cId == 6){
-                $price = $pro->getData('price');
-            }else{
-                $price = '暂无报价';
+        try{
+            $session = $this->_getSession();
+            $customerId = $session->getCustomerId();
+            Mage::log("get customer id is :".$customerId);
+            $customer = Mage::getModel('customer/customer')->load($customerId);
+            $groupId = $customer->getData('groupId');
+            $product = $this->_newProduct()->getCollection()
+                ->addAttributeToSelect("*")
+                ->addAttributeToFilter("entity_id",$productId)
+                ->load();
+            foreach($product as $pro){
+                if($groupId == 2 || $cId == 6){
+                    $price = $pro->getData('price');
+                }else{
+                    $price = '暂无报价';
+                }
+                $arr = array("id" => $pro->getData('entity_id'),
+                    "sku" => $pro->getData('sku'),
+                    "name" => $pro->getData('name'),
+                    "pn" => $pro->getData('pn'),
+                    "description" => $pro->getData('description'),
+                    //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "image" => $pro->getImageUrl(),
+                    "price" => $price,
+                    "qty"   => $this->_getQty($pro->getData('entity_id'))
+                );
             }
-            $arr = array("id" => $pro->getData('entity_id'),
-                "sku" => $pro->getData('sku'),
-                "name" => $pro->getData('name'),
-                "pn" => $pro->getData('pn'),
-                "description" => $pro->getData('description'),
-                "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                "price" => $price,
-                "qty"   => $this->_getQty($pro->getData('entity_id'))
-            );
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+
     }
 
     /**
@@ -747,11 +754,17 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "sku"              => $item->getSku(),
                     "qty"              => $item->getQty(),
                     "price"            => $item->getPrice(),
-                    "total_price"      => $item->getRow_total()
+                    "total_price"      => $item->getRow_total(),
+                    "image"            => $this->_getProductImage($item->getProductId())
             );
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));return;
 
+    }
+
+    public function _getProductImage($productId){
+        $product = $this->_newProduct()->load($productId);
+        return $product->getSmallImageUrl();
     }
 
     /**
@@ -859,7 +872,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             try {
                 $this->_newCart()->removeItem($id)
                     ->save();
-                echo Zend_Json::encode(array("success" => true, "data" => "成功移除购物车"));
+                echo Zend_Json::encode(array("success" => true, "data" => "成功移除购物车"));return;
             } catch (Exception $e) {
                 echo Zend_Json::encode(array("success" => false, "data" => "移除购物车失败"));return;
             }
@@ -1207,6 +1220,37 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for get default address
+     */
+    public function getDefaultAddressAction(){
+        Mage::log("receive get default address action.");
+        $session = $this->_getSession();
+        if(!$session->isLoggedIn()){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
+        $customerId = $session->getId();
+        Mage::log("get customer id is: ".$customerId);
+        try{
+            $_pAddsses = $session->getCustomer()->getDefaultBilling();
+            $item = $session->getCustomer()->getAddressById($_pAddsses);
+            if($item){
+                $arr = array(
+                    "id"        => $item->getData("entity_id"),
+                    "name"      => $item->getData("firstname"),
+                    "company"   => $item->getData("company"),
+                    "telephone" => $item->getData("telephone"),
+                    "street"    => $item->getData("street")
+                );
+            }else{
+                $arr = array();
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));return;
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+    }
+
+    /**
      * api for set default address action.
      */
     public function setDefaultAddressAction(){
@@ -1478,7 +1522,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $product = $this->_newProduct()->load($product_id);
                 $name = $product->getData('name');
                 $price = $product->getPrice();
-                $image = $product->getData('small_image');
+                $image = $product->getSmallImageUrl();
                 $qty = $item['qty'];
                 $item_id = $item['wishlist_item_id'];
 
@@ -1487,8 +1531,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "item_id" => $item_id,
                     "name" => $name,
                     "price" => $price,
-                    "image" => Mage::getBaseUrl('media').'catalog/category'.$image,
-                    "qty" => $qty,
+                    //"image" => Mage::getBaseUrl('media').'catalog/category'.$image,
+                    "image"  => $image,
+                    "qty" => $qty
                 );
             }
             echo Zend_Json::encode(array("success" => true, "data" => $arr));
@@ -1573,16 +1618,26 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      * api for cms
      */
     public function getCmsAction(){
-        $read = Mage::getSingleton('core/resource')->getConnection('core_read');
-        $select = "select a.title, a.identifier from cms_page as a left join cms_page_store as b on a.page_id = b.page_id where b.store_id = 1 order by a.update_time desc";
-        $res = $read->fetchAll($select);
-        $arr = array();
-        foreach($res as $item){
-            $arr[] = array("title" => $item['title'],
-                "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier'] );
+        Mage::log("receive get cms action.");
+        try{
+            $sql_where = "";
+            $date = $this->getRequest()->getParam("date",false);
+            if($date){
+                $sql_where .= "and date(a.creation_time) = "."'$date'";
+            }
+            $read = Mage::getSingleton('core/resource')->getConnection('core_read');
+            $select = "select a.title, a.identifier from cms_page as a left join cms_page_store as b on a.page_id = b.page_id where b.store_id = 1 ".$sql_where." order by a.creation_time desc";
+            $res = $read->fetchAll($select);
+            $arr = array();
+            foreach($res as $item){
+                $arr[] = array("title" => $item['title'],
+                    "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier'] );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
-        var_dump($arr);exit;
-        echo Zend_Json::encode(array("success" => true, "data" => $arr));
+
     }
 
     /**
@@ -1635,7 +1690,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $arr = array("id" => $pro->getData('entity_id'),
                 "sku" => $pro->getData('sku'),
                 "name" => $pro->getData('name'),
-                "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                "image" => $pro->getSmallImageUrl(),
                 "price" => $pro->getData('price'),
                 "qty"   => $this->_getQty($pro->getData('entity_id'))
             );
@@ -1727,7 +1783,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $arr[] = array("id" => $pro->getData('entity_id'),
                     "sku" => $pro->getData('sku'),
                     "name" => $pro->getData('name'),
-                    "image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "image" => $pro->getSmallImageUrl(),
                     "price" => $price,
                     "qty"   => $this->_getQty($pro->getData('entity_id'))
                 );
