@@ -889,7 +889,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
         if(!$customerId){
-            echo Zend_Json::encode(array("succuss" => false, "data" => "请先登录"));return;
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
         }
         try{
             $order = $this->_newOrder()->getCollection()
@@ -987,10 +987,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $order->setIncrementId($reservedOrderId)
             ->setStoreId($storeId)
             ->setQuoteId(0)
-            ->setGlobal_currency_code('CN')
-            ->setBase_currency_code('CN')
-            ->setStore_currency_code('CN')
-            ->setOrder_currency_code('CN');
+            ->setGlobal_currency_code('USD')
+            ->setBase_currency_code('USD')
+            ->setStore_currency_code('USD')
+            ->setOrder_currency_code('USD');
         //这里我设置成'CN', 你可以根据自己的需求修改或添加
 
         //保存用户信息
@@ -1506,7 +1506,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     Mage::throwException($result);
                 }
                 $wishlist->save();
-                echo Zend_Json::encode(array("success" => true, "data" => "关注成功"));return;
+                $id = $wishlist->getData("wishlist_id");
+                echo Zend_Json::encode(array("success" => true, "data" => "关注成功", "wishlist_id" => $id));return;
             } catch (Exception $e) {
                 echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
             }
@@ -1633,6 +1634,28 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for delete wishlist by product
+     */
+    public function deleteWishListByProductAction(){
+        Mage::log("receive remove wish list by product action.");
+        $id = (int) $this->getRequest()->getParam('product_id',false);
+        $wId = (int) $this->getRequest()->getParam("wishlist_id",false);
+        if (!$id || !$wId) {
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你要移除的关注产品"));return;
+        }
+
+        try {
+            $read = Mage::getSingleton('core/resource')->getConnection('core_write');
+            $where = "product_id = "."'$id'"." and wishlist_id = "."'$wId'";
+            $read->delete('wishlist_item',$where);
+
+            echo Zend_Json::encode(array("success" => true, "data" => "取消关注"));return;
+        } catch (Exception $e) {
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));return;
+        }
+    }
+
+    /**
      * api for cms
      */
     public function getCmsAction(){
@@ -1648,8 +1671,10 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $res = $read->fetchAll($select);
             $arr = array();
             foreach($res as $item){
-                $arr[] = array("title" => $item['title'],
-                    "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier'] );
+                $arr[] = array(
+                    "title" => $item['title'],
+                    "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier']
+                );
             }
             echo Zend_Json::encode(array("success" => true, "data" => $arr));
         }catch (Exception $e){
