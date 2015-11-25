@@ -427,7 +427,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $customerId = $session->getCustomerId();
         $customer = $this->_newCustomer()->load($customerId);
         if(!empty($paras['name']) && isset($paras['name'])){
-            $customer->setName($paras['name']);
+            $customer->setData('firstname',$paras['name']);
+            $customer->setData('lastname',$paras['name']);
         }
         if(!empty($paras['company']) && isset($paras['company'])){
             $customer->setPrefix($paras['company']);
@@ -1537,22 +1538,24 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $res = $read->fetchAll($sql);
             $arr = array();
             foreach($res as $item){
-                $product_id = $item['product_id'];
-                $product = $this->_newProduct()->load($product_id);
-                $name = $product->getData('name');
-                $price = $product->getPrice();
-                $image = $product->getSmallImageUrl();
-                $qty = $item['qty'];
-                $item_id = $item['wishlist_item_id'];
+                $product_id  = $item['product_id'];
+                $product     = $this->_newProduct()->load($product_id);
+                $name        = $product->getData('name');
+                $price       = $product->getPrice();
+                $image       = $product->getSmallImageUrl();
+                $qty         = $item['qty'];
+                $item_id     = $item['wishlist_item_id'];
+                $wishlist_id = $item['wishlist_id'];
 
                 $arr[] = array(
-                    "product_id" => $product_id,
-                    "item_id" => $item_id,
-                    "name" => $name,
-                    "price" => $price,
-                    //"image" => Mage::getBaseUrl('media').'catalog/category'.$image,
-                    "image"  => $image,
-                    "qty" => $qty
+                    "wishlist_id" => $wishlist_id,
+                    "product_id"  => $product_id,
+                    "item_id"     => $item_id,
+                    "name"        => $name,
+                    "price"       => $price,
+                    //"image"     => Mage::getBaseUrl('media').'catalog/category'.$image,
+                    "image"       => $image,
+                    "qty"         => $qty
                 );
             }
             echo Zend_Json::encode(array("success" => true, "data" => $arr));
@@ -1673,7 +1676,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             foreach($res as $item){
                 $arr[] = array(
                     "title" => $item['title'],
-                    "url" => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier']
+                    "url"   => $home_url = Mage::helper('core/url')->getHomeUrl().$item['identifier']
                 );
             }
             echo Zend_Json::encode(array("success" => true, "data" => $arr));
@@ -1783,6 +1786,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         Mage::log("get customer id is :".$customerId);
         $category_id = $this->getRequest()->getParam("c_id",false);
         $sortColumn = $this->getRequest()->getParam('sortColumn');
+        //$price = $this->getRequest()->getParam('price',false);
         $search = $this->getRequest()->getParam('search');
         $sort = $this->getRequest()->getParam('sort','asc');
         $page = $this->getRequest()->getParam('page',1);
@@ -1805,6 +1809,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             if(!empty($search) && isset($search)){
                 $products->addAttributeToFilter('name', $search);
             }
+            //if(!$price && isset($price)){
+                //$products->addAttributeToFilter('price',$price);
+            //}
 
             //$products->getSelect()->limit(10,$postData['offset']);
             $products->setCurPage($page);
@@ -1815,7 +1822,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 ->getProductCollection()->count();
             $pages = ceil($count/$pageSize);
             if($page > $pages){
-                echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));return;
+                echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count, "v" => array("version" => 1.0, "url" => Mage::getBaseUrl()."app_api/api/download")));return;
             }
             foreach($products as $pro){
                 if($groupId == 2 || $category_id == 6){
@@ -1833,7 +1840,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 );
 
             }
-            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));
+            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count, "v" => array("version" => 1.0, "url" => Mage::getBaseUrl()."app_api/api/download")));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -1910,5 +1917,75 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
     }
 
+    /**
+     * api for banner
+     */
+    public function getBannerAction(){
+        Mage::log("receive get banner action.");
+        try{
+            $read = Mage::getSingleton('core/resource')->getConnection('core_read');
+            $select = "select * from banner7 where status = 1";
+            $res = $read->fetchAll($select);
+            $arr = array();
+            foreach($res as $item){
+                $arr[] = array(
+                    "title" => $item['title'],
+                    "url" => $item['link'],
+                    "image" => Mage::getBaseUrl("media").$item['image']
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+    }
+
+    /**
+     * api for upload android apk
+     */
+    public function uploadAction(){
+        Mage::log("receive upload android apk action.");
+        $fileName = '';
+        Mage::log("upload files is :".var_export($_FILES,true));
+        if (isset($_FILES['file']['name']) && $_FILES['file']['name'] != '') {
+            try {
+                $fileName       = $_FILES['file']['name'];
+                $uploader       = new Varien_File_Uploader('file');
+                $uploader->setAllowedExtensions(array('apk'));
+                $uploader->setAllowRenameFiles(false);
+                $uploader->setFilesDispersion(false);
+                $path = Mage::getBaseDir('media') . DS . 'apk';
+                if(!is_dir($path)){
+                    mkdir($path, 0777, true);
+                }
+                $uploader->save($path . DS, $fileName );
+                echo Zend_Json::encode(array("success" => true, "data" => "上传成功"));
+
+            } catch (Exception $e) {
+                echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+            }
+        }
+    }
+
+    /**
+     * api for download android apk
+     */
+    public function downloadAction(){
+        Mage::log("receive download action.");
+        $name = "android.apk";
+        $file_dir = "/opt/lampp/htdocs/magento/media/apk/";
+        //$file_dir = "C:/xampp/htdocs/magento/media/apk/";
+        if (!file_exists($file_dir.$name)){
+            echo Zend_Json::encode(array("success" => false, "data" => "文件未找到"));return;
+        } else {
+            $file = fopen($file_dir.$name,"r");
+            Header("Content-type: application/octet-stream");
+            Header("Accept-Ranges: bytes");
+            Header("Accept-Length: ".filesize($file_dir . $name));
+            Header("Content-Disposition: attachment; filename=".$name);
+            echo fread($file, filesize($file_dir.$name));
+            fclose($file);
+        }
+    }
 
 }
