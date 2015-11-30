@@ -490,54 +490,6 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }*/
 
     /**
-     * api for list products
-     */
-    public function searchProductsAction(){
-        Mage::log("receive search products action");
-        $session = $this->_getSession();
-        $customerId = $session->getCustomerId();
-        Mage::log("get customer id is :".$customerId);
-        $page = $this->getRequest()->getParam("page",1);
-        $pageSize = $this->getRequest()->getParam("pageSize",10);
-        $search = $this->getRequest()->getParam("search",false);
-        if(!$search){
-            echo Zend_Json::encode(array("success" => false, "data" => "请输入你要搜索的产品名"));return;
-        }
-        try{
-            $customer = Mage::getModel('customer/customer')->load($customerId);
-            $groupId = $customer->getData('groupId');
-            $products = Mage::getModel('catalog/product');
-            $list = $products->getCollection()
-                ->addAttributeToSelect("*")
-                ->addAttributeToFilter("name",$search)
-                ->setCurPage($page)
-                ->setPageSize($pageSize)
-                ->load();
-            $count = $list->count();
-            $arr = array();
-            foreach($list as $pro){
-                if($groupId == 2){
-                    $price = $pro->getData('price');
-                }else{
-                    $price = '暂无报价';
-                }
-                $arr[] = array("id" => $pro->getData('entity_id'),
-                    "sku" => $pro->getData('sku'),
-                    "name" => $pro->getData('name'),
-                    //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
-                    "image" => $pro->getSmallImageUrl(),
-                    "price" => $price,
-                    "qty"   => $this->_getQty($pro->getData('entity_id'))
-                );
-            }
-            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));
-        }catch (Exception $e){
-            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
-        }
-
-    }
-
-    /**
      * function for get product qty
      * @param $product_id
      * @return mixed
@@ -1126,6 +1078,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $products = $this->getRequest()->getParam('products',false);
             $products = json_decode($products,true);
             Mage::log("save order products list is :".var_export($products,true));
+            if(!$products || !is_array($products)){
+                echo Zend_Json::encode(array("success" => false, "data" => "请选择你要购买的产品"));return;
+            }
             //$products = array(
             //    '2' => array('qty' => 3),
              //   '1' => array('qty' => 1)
@@ -1777,6 +1732,77 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for list products
+     */
+    public function searchProductsAction(){
+        Mage::log("receive search products action");
+        $session = $this->_getSession();
+        $customerId = $session->getCustomerId();
+        Mage::log("get customer id is :".$customerId);
+        $page = $this->getRequest()->getParam("page",1);
+        $pageSize = $this->getRequest()->getParam("pageSize",10);
+        $search = $this->getRequest()->getParam("search",false);
+        $c_id = $this->getRequest()->getParam("c_id",false);
+        $sortColumn = $this->getRequest()->getParam("sortColumn",false);
+        $sort = $this->getRequest()->getParam("sort","asc");
+        if(!$search){
+            echo Zend_Json::encode(array("success" => false, "data" => "请输入你要搜索的产品名"));return;
+        }
+        if(!$c_id){
+            echo Zend_Json::encode(array("success" => false, "data" => "请选择你搜索的分类"));return;
+        }
+        try{
+            $customer = Mage::getModel('customer/customer')->load($customerId);
+            $groupId = $customer->getData('groupId');
+            $products = Mage::getModel('catalog/category')->load($c_id)
+                ->getProductCollection();
+            $products->addAttributeToSelect('*');
+            $products->addAttributeToFilter('status', 1);
+            $products->addAttributeToFilter('visibility', 4);
+            $products->addAttributeToFilter('name', array("like" => "%$search%"));
+            if($sortColumn){
+                $products->addAttributeToSort($sortColumn,$sort);
+            }
+            $products->setCurPage($page);
+            $products->setPageSize($pageSize);
+            $p = Mage::getModel('catalog/category')->load($c_id)
+                ->getProductCollection();
+            $p->addAttributeToFilter('name', array("like" => "%$search%"));
+            if($sortColumn){
+                $products->addAttributeToSort($sortColumn,$sort);
+            }
+            $count = $p->count();
+            $arr = array();
+            Mage::log("get search products the product counts is :".$count);
+            $pages = ceil($count/$pageSize);
+            if($page > $pages){
+                echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));return;
+            }
+
+            foreach($products as $pro){
+                if($groupId == 2){
+                    $price = $pro->getData('price');
+                }else{
+                    $price = '暂无报价';
+                }
+                $arr[] = array("id" => $pro->getData('entity_id'),
+                    "sku" => $pro->getData('sku'),
+                    "name" => $pro->getData('name'),
+                    //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
+                    "image" => $pro->getSmallImageUrl(),
+                    "price" => $price,
+                    "qty"   => $this->_getQty($pro->getData('entity_id'))
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+
+    }
+
+
+    /**
      * api for get product by category
      */
     public function getProductsByCidAction(){
@@ -1787,7 +1813,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         $category_id = $this->getRequest()->getParam("c_id",false);
         $sortColumn = $this->getRequest()->getParam('sortColumn');
         //$price = $this->getRequest()->getParam('price',false);
-        $search = $this->getRequest()->getParam('search');
+        //$search = $this->getRequest()->getParam('search');
         $sort = $this->getRequest()->getParam('sort','asc');
         $page = $this->getRequest()->getParam('page',1);
         $pageSize = $this->getRequest()->getParam('pageSize',10);
@@ -1806,14 +1832,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             if(!empty($sortColumn) && isset($sortColumn)){
                 $products->addAttributeToSort($sortColumn,$sort);
             }
-            if(!empty($search) && isset($search)){
-                $products->addAttributeToFilter('name', $search);
-            }
-            //if(!$price && isset($price)){
-                //$products->addAttributeToFilter('price',$price);
+            //if(!empty($search) && isset($search)){
+                //Mage::log("receive serch value is :".$search);
+                //$products->addAttributeToFilter('name', array("like" => "%$search%"));
+                //$products->addAttributeToFilter(array("name","description"),array(array("like" => "%$search%"),array("like" => "%$search%")));
             //}
 
-            //$products->getSelect()->limit(10,$postData['offset']);
             $products->setCurPage($page);
             $products->setPageSize($pageSize);
             //$count = $products->count();
@@ -1840,7 +1864,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 );
 
             }
-            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count, "v" => array("version" => 1.0, "url" => Mage::getBaseUrl()."app_api/api/download")));
+            echo Zend_Json::encode(array("success" => true, "data" => $arr, "count" => $count, "v" => array("version" => 2.0, "url" => Mage::getBaseUrl()."app_api/api/download")));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -1979,10 +2003,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             echo Zend_Json::encode(array("success" => false, "data" => "文件未找到"));return;
         } else {
             $file = fopen($file_dir.$name,"r");
+            Mage::log("file size is :".filesize($file_dir.$name));
             Header("Content-type: application/octet-stream");
             Header("Accept-Ranges: bytes");
             Header("Accept-Length: ".filesize($file_dir . $name));
             Header("Content-Disposition: attachment; filename=".$name);
+            Header("Content-Length: " .filesize($file_dir . $name));
             echo fread($file, filesize($file_dir.$name));
             fclose($file);
         }
