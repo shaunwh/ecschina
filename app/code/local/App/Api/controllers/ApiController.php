@@ -834,6 +834,48 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for order list by status
+     */
+    public function orderListByStatusAction(){
+        Mage::log("receive order list by status action.");
+        $session = $this->_getSession();
+        $customerId = $session->getCustomerId();
+        Mage::log("login customer id is :".$customerId);
+        if(!$customerId){
+            echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
+        }
+        $status = $this->getRequest()->getParam("status",false);
+        Mage::log("get order list status is :".$status);
+        if(!$status){
+            echo Zend_Json::encode(array("success" => false, "data" => "请指定要获取订单的状态属性"));return;
+        }
+        try{
+            $order = $this->_newOrder()->getCollection()
+                ->addAttributeToSelect("*")
+                ->addAttributeToFilter("customer_id",$customerId)
+                ->addAttributeToFilter("status",$status)
+                ->load();
+            $arr = array();
+            foreach($order as $list){
+                $arr[] = array("id" => $list->getData("entity_id"),
+                    "status" => $list->getData("status"),
+                    "order_code" => $list->getData("increment_id"),
+                    "order_price" => $list->getData("subtotal"),
+                    "total_price" => $list->getData("grand_total"),
+                    "express" => $list->getData("shipping_amount"),
+                    "order_qty" => $list->getData("total_qty_ordered"),
+                    "order_date" => $list->getData("created_at"),
+                    "customer_name" => $list->getData("customer_lastname"),
+                    "customer_email" => $list->getData("customer_email")
+                );
+            }
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+        }catch (Exception $e){
+            echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
+        }
+    }
+
+    /**
      * api for order list
      */
     public function orderListAction(){
