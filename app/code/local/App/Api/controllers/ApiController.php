@@ -697,7 +697,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
         $items = $cart->getQuote()->getAllItems();
         $arr = array();
-        $arr['count'] = $cart->getQuote()->getItemsCount();
+        $arr['count'] = 0;
         $arr['total_price'] = $cart->getQuote()->getGrandTotal();
         foreach($items as $item){
             $arr['data'][] = array(
@@ -710,6 +710,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "total_price"      => $item->getRow_total(),
                     "image"            => $this->_getProductImage($item->getProductId())
             );
+            $arr['count'] += $item->getQty();
         }
         echo Zend_Json::encode(array("success" => true, "data" => $arr));return;
 
