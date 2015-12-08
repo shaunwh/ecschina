@@ -108,6 +108,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function signInAction(){
         Mage::log("receive sign action.");
+        $this->setJsonHeader();
         $paras = $this->getRequest()->getParams();
         //$paras = array("name" => "qwe","email" => "qwe@126.com","password" => "123456","head" => "this is head test","phone" => "1554434332333");
         if(empty($paras['email']) || empty($paras['name']) || empty($paras['password'])){
@@ -192,6 +193,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function sendSmsAction(){
         Mage::log("receive verify message action.");
+        $this->setJsonHeader();
         $mobile = $this->getRequest()->getParam('mobile',false);
         if(!$mobile){
             echo Zend_Json::encode(array("success" => false, "data" => "电话号码不能为空"));return;
@@ -214,6 +216,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function loginAction(){
         Mage::log("receive login action");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if($session->isLoggedIn()){
             $customerData = $session->getCustomer()->getData();
@@ -248,6 +251,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function myInfoAction(){
         Mage::log("receive my info action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -287,6 +291,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function logoutAction(){
         Mage::log("receive logout action.");
+        $this->setJsonHeader();
         try{
             $this->_getSession()->logout()
                 ->renewSession()
@@ -305,6 +310,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     public function changePasswordAction(){
 
         Mage::log("receive change password action.");
+        $this->setJsonHeader();
         $paras = $this->getRequest()->getParam('password',false);
         $old_password = $this->getRequest()->getParam('old_password',false);
         $session = $this->_getSession();
@@ -338,6 +344,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function postSmsCodeAction(){
         Mage::log("receive post sms code action.");
+        $this->setJsonHeader();
         $paras = $this->getRequest()->getParams();
         Mage::log("paras is :".var_export($paras,true));
         //$paras = array("mobile" => 15210010339, "secret" => 847399);
@@ -391,6 +398,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function resetPasswordAction(){
        Mage::log("receive forgot password action.");
+        $this->setJsonHeader();
        $session = $this->_getSession();
        $password = $this->getRequest()->getParam("password",false);
        if(!$password){
@@ -419,6 +427,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function editUserInfoAction(){
         Mage::log("receive edit user info action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -543,6 +552,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function productInfoAction(){
         Mage::log("receive product info action.");
+        $this->setJsonHeader();
         $productId = $this->getRequest()->getParam("product_id",false);
         Mage::log("product id is :".$productId);
         $cId = $this->getRequest()->getParam("c_id",false);
@@ -633,6 +643,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function addCartAction(){
         Mage::log("receive add cart action.");
+        $this->setJsonHeader();
         $cart = $this->_newCart();
         $params = $this->getRequest()->getParams();
         $session = $this->_getSession();
@@ -688,6 +699,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function cartAction(){
         Mage::log("receive cart action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn())
         {
@@ -736,6 +748,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function updateCartAction(){
         Mage::log("receive update cart action.");
+        $this->setJsonHeader();
         $updateAction = (string)$this->getRequest()->getParam('update_cart_action');
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
@@ -759,6 +772,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     protected function _updateShoppingCart()
     {
+        $this->setJsonHeader();
         try {
             $cartData = $this->getRequest()->getParam("cart",false);
             //批量更新$cartData = array("7" => array("qty" => 12),"8" => array("qty" => 12));
@@ -802,6 +816,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     protected function _emptyShoppingCart()
     {
+        $this->setJsonHeader();
         try {
             $this->_newCart()->truncate()->save();
             $this->_getSession()->setCartWasUpdated(true);
@@ -817,6 +832,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function deleteCartAction(){
         Mage::log("receive delete cart action.");
+        $this->setJsonHeader();
         $id = (int) $this->getRequest()->getParam('id');
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
@@ -839,6 +855,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function orderListByStatusAction(){
         Mage::log("receive order list by status action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
         Mage::log("login customer id is :".$customerId);
@@ -881,6 +898,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function orderListAction(){
         Mage::log("receive order list action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
@@ -918,6 +936,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function orderInfoAction(){
         Mage::log("receive order info action.");
+        $this->setJsonHeader();
         $order_id = $this->getRequest()->getParam('id',false);
         if(!$order_id){
             echo Zend_Json::encode(array("success" => false, "data" => "请选择你要查看的订单"));return;
@@ -950,6 +969,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function cancelOrderAction(){
         Mage::log("receive cancel order action.");
+        $this->setJsonHeader();
         $order_id = $this->getRequest()->getParam("id",false);
         if(!$order_id){
             echo Zend_Json::encode(array("success" => false, "data" => "请选择你要取消的订单"));return;
@@ -969,6 +989,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function saveOrderAction(){
         Mage::log("receive save order action.");
+        $this->setJsonHeader();
         //填写客户的 Id 号
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
@@ -1174,6 +1195,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function saveAddressAction(){
         Mage::log("receive save customer address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1240,6 +1262,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getDefaultAddressAction(){
         Mage::log("receive get default address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1272,6 +1295,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function setDefaultAddressAction(){
         Mage::log("receive set default address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1298,6 +1322,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function listAddressAction(){
         Mage::log("receive customer address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1342,6 +1367,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function editAddressAction(){
         Mage::log("receive edit address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1416,6 +1442,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function deleteAddressAction(){
         Mage::log("receive delete address action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1441,6 +1468,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function addressInfoAction(){
         Mage::log("get address info action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1468,6 +1496,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function addWishListAction(){
         Mage::log("receive add wishlist action.");
+        $this->setJsonHeader();
         try {
             $customerId = Mage::getSingleton('customer/session')->getCustomerId();
             if(!$customerId){
@@ -1520,6 +1549,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function wishListAction(){
         Mage::log("receive wishlist action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         if(!$session->isLoggedIn()){
             echo Zend_Json::encode(array("success" => false, "data" => "请先登录"));return;
@@ -1612,6 +1642,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function removeWishListAction(){
         Mage::log("receive remove wish list action.");
+        $this->setJsonHeader();
         $id = (int) $this->getRequest()->getParam('item_id');
         $item = Mage::getModel('wishlist/item')->load($id);
         if (!$item->getId()) {
@@ -1638,6 +1669,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      * api for delete wishlist by product
      */
     public function deleteWishListByProductAction(){
+        $this->setJsonHeader();
         Mage::log("receive remove wish list by product action.");
         $id = (int) $this->getRequest()->getParam('product_id',false);
         $wId = (int) $this->getRequest()->getParam("wishlist_id",false);
@@ -1661,6 +1693,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getCmsAction(){
         Mage::log("receive get cms action.");
+        $this->setJsonHeader();
         try{
             $sql_where = "";
             $date = $this->getRequest()->getParam("date",false);
@@ -1721,6 +1754,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getProductByScanAction(){
         Mage::log("receive get product by scan action.");
+        $this->setJsonHeader();
         $pn_code = $this->getRequest()->getParam('pn_code',false);
         Mage::log("pn code is:".$pn_code);
         if(!$pn_code){
@@ -1748,6 +1782,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getCategoriesByCidAction(){
         Mage::log("receive get categories by category id action.");
+        $this->setJsonHeader();
         $c_id = $this->getRequest()->getParam("c_id",3);
         Mage::log("c_id is :".$c_id);
         if(!$c_id){
@@ -1779,6 +1814,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function searchProductsAction(){
         Mage::log("receive search products action");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
@@ -1844,12 +1880,16 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
 
     }
 
+    public function setJsonHeader(){
+        return $this->getResponse()->setHeader("Content-type", "application/json;charset=utf-8");
+    }
 
     /**
      * api for get product by category
      */
     public function getProductsByCidAction(){
         Mage::log("receive get products by category id action.");
+        $this->setJsonHeader();
         $session = $this->_getSession();
         $customerId = $session->getCustomerId();
         Mage::log("get customer id is :".$customerId);
@@ -1934,6 +1974,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getDeliveryInfoAction(){
         Mage::log("receive get delivery info action.");
+        $this->setJsonHeader();
         $order_id = $this->getRequest()->getParam("order_id",false);
         if(!$order_id){
             echo Zend_Json::encode(array("success" => false, "data" => "请选择一个订单"));return;
@@ -1989,6 +2030,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
      */
     public function getBannerAction(){
         Mage::log("receive get banner action.");
+        $this->setJsonHeader();
         try{
             $read = Mage::getSingleton('core/resource')->getConnection('core_read');
             $select = "select * from banner7 where status = 1";
