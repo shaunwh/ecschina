@@ -580,6 +580,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "name" => $pro->getData('name'),
                     "pn" => $pro->getData('pn'),
                     "description" => $pro->getData('description'),
+                    "short_description" => $pro->getData('short_description'),
                     //"image" => Mage::getBaseUrl('media').'catalog/product'.$pro->getData('small_image'),
                     "image" => $pro->getImageUrl(),
                     "price" => $price,
