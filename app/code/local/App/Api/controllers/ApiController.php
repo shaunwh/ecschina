@@ -895,6 +895,19 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
     }
 
     /**
+     * api for get product info on order
+     */
+    public function getProductByOrderId($id){
+        $sales_order = Mage::getModel('sales/order')->load($id);
+        foreach ($sales_order->getAllItems() as $item) {
+            //$data = array("qty" =>  $item->getQtyOrdered(),"name" => $item->getName());
+            $data = $item->getName();
+        }
+
+        return $data;
+    }
+
+    /**
      * api for order list
      */
     public function orderListAction(){
@@ -913,19 +926,22 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 ->load();
             $arr = array();
             foreach($order as $list){
+                //$arr[] = $list->getData();
                 $arr[] = array("id" => $list->getData("entity_id"),
                     "status" => $list->getData("status"),
                     "order_code" => $list->getData("increment_id"),
                     "order_price" => $list->getData("subtotal"),
                     "total_price" => $list->getData("grand_total"),
                     "express" => $list->getData("shipping_amount"),
+                    "product_name" => $this->getProductByOrderId($list->getData("entity_id")),
                     "order_qty" => $list->getData("total_qty_ordered"),
                     "order_date" => $list->getData("created_at"),
                     "customer_name" => $list->getData("customer_lastname"),
                     "customer_email" => $list->getData("customer_email")
                 );
             }
-            echo Zend_Json::encode(array("success" => true, "data" => $arr));
+            var_dump($arr);exit;
+            //echo Zend_Json::encode(array("success" => true, "data" => $arr));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
