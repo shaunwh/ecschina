@@ -1701,7 +1701,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 $sql_where .= "and date(a.creation_time) = "."'$date'";
             }
             $read = Mage::getSingleton('core/resource')->getConnection('core_read');
-            $select = "select a.title, a.identifier from cms_page as a left join cms_page_store as b on a.page_id = b.page_id where b.store_id = 1 ".$sql_where." order by a.creation_time desc";
+            $select = "select a.title, a.identifier from cms_page as a left join cms_page_store as b on a.page_id = b.page_id where b.store_id = 1 and a.root_template = 'empty' ".$sql_where." order by a.creation_time desc";
             $res = $read->fetchAll($select);
             $arr = array();
             foreach($res as $item){
