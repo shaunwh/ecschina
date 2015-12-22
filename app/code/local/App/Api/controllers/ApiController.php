@@ -940,8 +940,8 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "customer_email" => $list->getData("customer_email")
                 );
             }
-            var_dump($arr);exit;
-            //echo Zend_Json::encode(array("success" => true, "data" => $arr));
+            //var_dump($arr);exit;
+            echo Zend_Json::encode(array("success" => true, "data" => $arr));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
@@ -1037,59 +1037,6 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
         // 保存 Billing Address
         try{
             $addressId = $this->getRequest()->getParam('address_id',false);
-            if(!$addressId){
-                $address = Mage::getModel('customer/address');
-                $addressForm = Mage::getModel('customer/form');
-                $addressForm->setFormCode('customer_address_edit')
-                    ->setEntity($address);
-                //$addressData    = $addressForm->extractData($this->getRequest());
-                $paras = $this->getRequest()->getParams();
-                $addressData = array(
-                    "firstname" => $paras['name'],
-                    "lastname" => $paras['name'],
-                    "company" => $paras['company'],
-                    "street" => $paras['street'],
-                    "city" => $paras['city'],
-                    "country_id" => "CN",
-                    "postcode" => $paras['postcode'],
-                    "telephone" => $paras['telephone']
-                );
-                /*$addressData = array(
-                    "firstname" => "cao",
-                    "lastname" => "fa",
-                    "company" => "伟士集团",
-                    "street" => "中关村大街111号",
-                    "city" => "北京",
-                    "country_id" => "CN",
-                    "postcode" => "100999",
-                    "telephone" => "13888888888"
-                );*/
-                $addressErrors  = $addressForm->validateData($addressData);
-                if ($addressErrors !== true) {
-                    $errors = $addressErrors;
-                }
-
-                try {
-                    $addressForm->compactData($addressData);
-                    $address->setCustomerId($session->getId())
-                        ->setIsDefaultBilling($this->getRequest()->getParam('default_billing', false))
-                        ->setIsDefaultShipping($this->getRequest()->getParam('default_shipping', false));
-
-                    $addressErrors = $address->validate();
-                    if ($addressErrors !== true) {
-                        $errors = array_merge($errors, $addressErrors);
-                    }
-
-                    if (count($errors) === 0) {
-                        $address->save();
-                        $addressId = $address->getData('entity_id');
-                    } else {
-                        echo Zend_Json::encode(array("success" => false, "data" => "保存收货地址失败"));return;
-                    }
-                } catch (Mage_Core_Exception $e) {
-                    echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));return;
-                }
-            }
             $billing        = $customer->getAddressItemById($addressId);
             //var_dump($billing);exit;
             //$billing        = $customer->getDefaultBillingAddress();
@@ -1157,15 +1104,12 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             //请先确认你所输的产品是否存在， 这里我输的产品号 Id 是 43
             $subTotal = 0;
             $products = $this->getRequest()->getParam('products',false);
-            $products = json_decode($products,true);
-            Mage::log("save order products list is :".var_export($products,true));
-            if(!$products || !is_array($products)){
+            if(!$products){
                 echo Zend_Json::encode(array("success" => false, "data" => "请选择你要购买的产品"));return;
             }
-            //$products = array(
-            //    '2' => array('qty' => 3),
-             //   '1' => array('qty' => 1)
-            //);
+            $products = json_decode($products,true);
+
+            Mage::log("save order products list is :".var_export($products,true));
 
             foreach ($products as $productId => $product) {
                 $_product  = Mage::getModel('catalog/product')->load($productId);
@@ -1177,7 +1121,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     ->setProductId($productId)
                     ->setProductType($_product->getTypeId())
                     ->setQtyBackordered(NULL)
-                    ->setTotalQtyOrdered($product['rqty'])
+                    ->setTotalQtyOrdered($product['qty'])
                     ->setQtyOrdered($product['qty'])
                     ->setName($_product->getName())
                     ->setSku($_product->getSku())
@@ -1200,6 +1144,9 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $transaction->addCommitCallback(array($order, 'place'));
             $transaction->addCommitCallback(array($order, 'save'));
             $transaction->save();
+            //empty shopping cart
+            //$this->_newCart()->truncate()->save();
+            //$this->_getSession()->setCartWasUpdated(true);
             echo Zend_Json::encode(array("success" => true, "data" => "成功生成订单"));
         } catch (Exception $e) {
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
