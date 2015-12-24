@@ -873,6 +873,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                 ->addAttributeToSelect("*")
                 ->addAttributeToFilter("customer_id",$customerId)
                 ->addAttributeToFilter("status",$status)
+                ->addAttributeToSort("entity_id","desc")
                 ->load();
             $arr = array();
             foreach($order as $list){
@@ -923,6 +924,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $order = $this->_newOrder()->getCollection()
                 ->addAttributeToSelect("*")
                 ->addAttributeToFilter("customer_id",$customerId)
+                ->addAttributeToSort("entity_id","desc")
                 ->load();
             $arr = array();
             foreach($order as $list){
@@ -965,7 +967,7 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
             $order = $this->_newOrder()->load($order_id);
             foreach($order->getAllItems() as $item){
                 $image = $this->_getProductImage($item->getData("product_id"));
-                $data[] = array(
+                $data['product_info'][] = array(
                     "id" => $item->getData("order_id"),
                     "name" => $item->getData("name"),
                     "price" => $item->getData("price"),
@@ -973,8 +975,19 @@ class App_Api_ApiController extends Mage_Core_Controller_Front_Action{
                     "qty_ordered" => $item->getData("qty_ordered"),
                     "image" => $image
                 );
+                //$data[] = $item->getData();
             }
-            echo Zend_Json::encode(array("success" => true, "data" => $data));
+            $address = Mage::getSingleton("sales/order_address")->load($order_id);
+            $arr['address_info'] = array(
+                "customer_name" => $address->getData("firstname"),
+                "telephone" => $address->getData("telephone"),
+                "street" => $address->getData("street"),
+                "city" => $address->getData("city")
+            );
+            $newarray = array_merge($data,$arr);
+            //var_dump($newarray);exit;
+            //var_dump($data);exit;
+            echo Zend_Json::encode(array("success" => true, "data" => $newarray));
         }catch (Exception $e){
             echo Zend_Json::encode(array("success" => false, "data" => $e->getMessage()));
         }
